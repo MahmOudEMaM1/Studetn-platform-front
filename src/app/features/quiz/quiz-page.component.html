@@ -1,0 +1,173 @@
+<section class="page-shell">
+  <img
+    class="background-glow"
+    src="assets/images/Group 41.png"
+    alt=""
+    aria-hidden="true"
+  />
+
+  <main class="page-layout">
+    @if (loadError()) {
+      <section class="state-panel state-panel-error">
+        <span class="state-badge">Unavailable</span>
+        <h2>Quiz could not be loaded</h2>
+        <p>{{ loadError() }}</p>
+      </section>
+    } @else if (!isLoading() && !topicId()) {
+      <section class="state-panel">
+        <span class="state-badge">Missing topic</span>
+        <h2>No topic was selected for this quiz</h2>
+        <p>Open a topic first, then use the “Test yourself” action to start the quiz.</p>
+      </section>
+    } @else if (!isLoading() && !questions().length) {
+      <section class="state-panel">
+        <span class="state-badge">Empty</span>
+        <h2>No quiz questions are available yet</h2>
+        <p>This topic does not have quiz content at the moment.</p>
+      </section>
+    } @else if (questions().length) {
+      <section class="quiz-grid">
+        <aside class="panel summary-panel">
+          <p class="eyebrow">Progress</p>
+          <h2>{{ answeredCount() }}/{{ questionCount() }} answered</h2>
+          <p>{{ progressLabel() }}</p>
+
+          <div class="progress-track" aria-hidden="true">
+            <span class="progress-value" [style.width.%]="(answeredCount() / questionCount()) * 100"></span>
+          </div>
+
+          @if (submitted()) {
+            <div class="status-card">
+              <strong>Quiz completed</strong>
+              <span>You can review your selected answers or restart this quiz.</span>
+            </div>
+
+            <button class="ghost-button" type="button" (click)="restartQuiz()">Restart quiz</button>
+          }
+        </aside>
+
+        <article class="panel question-panel">
+          @if (currentQuestion(); as question) {
+            <div class="question-head">
+              <p class="eyebrow">{{ progressLabel() }}</p>
+              <h2>{{ question.questionText }}</h2>
+            </div>
+
+            <div class="option-list">
+              @for (choice of question.choices; track choice.key) {
+                <button
+                  class="option-card"
+                  type="button"
+                  [class.option-card-selected]="isSelected(choice.key)"
+                  [disabled]="submitted()"
+                  (click)="selectOption(choice.key)"
+                >
+                  <span class="option-badge">{{ choice.key }}</span>
+                  <span>{{ choice.text }}</span>
+                </button>
+              }
+            </div>
+
+            <div class="action-row">
+              <button
+                class="ghost-button"
+                type="button"
+                (click)="previousQuestion()"
+                [disabled]="currentIndex() === 0"
+              >
+                Previous
+              </button>
+
+              @if (isLastQuestion()) {
+                <button
+                  class="primary-button"
+                  type="button"
+                  [disabled]="isSubmittingReview() || submitted()"
+                  (click)="submitQuiz()"
+                >
+                  {{
+                    isSubmittingReview()
+                      ? 'Reviewing...'
+                      : submitted()
+                        ? 'Completed'
+                        : 'Finish quiz'
+                  }}
+                </button>
+              } @else {
+                <button class="primary-button" type="button" (click)="nextQuestion()">Next</button>
+              }
+            </div>
+
+            @if (reviewError()) {
+              <p class="review-error">{{ reviewError() }}</p>
+            }
+          }
+        </article>
+      </section>
+    }
+  </main>
+
+  @if (isReviewModalOpen() && reviewResult(); as review) {
+    <div class="review-modal-backdrop" aria-live="polite">
+      <section class="review-modal" role="dialog" aria-modal="true" aria-label="Quiz review result">
+        <div class="review-modal-head">
+          <div class="review-modal-copy">
+            <p class="eyebrow">Quiz Review</p>
+            <h2>{{ review.topicName }}</h2>
+            <p>
+              You answered {{ reviewCorrectCount() }} out of {{ review.answers.length }} questions
+              correctly.
+            </p>
+          </div>
+
+          <button class="review-close-button" type="button" (click)="closeReviewModal()">
+            Close
+          </button>
+        </div>
+
+        <div class="review-answer-list">
+          @for (answer of review.answers; track trackReviewAnswer($index, answer)) {
+            <article class="review-answer-card">
+              <div class="review-question-head">
+                <span class="review-question-badge">{{ $index + 1 }}</span>
+                <div class="review-question-copy">
+                  <h3>{{ answer.questionText }}</h3>
+                  <span [class.review-status-correct]="answer.isCorrect" [class.review-status-wrong]="!answer.isCorrect">
+                    {{ answer.isCorrect ? 'Correct' : 'Needs review' }}
+                  </span>
+                </div>
+              </div>
+
+              <div class="review-choice-list">
+                @for (choice of answer.choices; track choice.key) {
+                  <div
+                    class="review-choice-card"
+                    [class.review-choice-correct]="isReviewChoiceCorrect(answer, choice)"
+                    [class.review-choice-wrong]="isReviewChoiceWrong(answer, choice)"
+                  >
+                    <span class="review-choice-badge">{{ choice.key }}</span>
+                    <span>{{ choice.text || 'No choice text' }}</span>
+                  </div>
+                }
+              </div>
+
+              <p class="review-correct-answer">
+                Correct answer:
+                <strong>{{ answer.correctAnswerText || answer.correctAnswer || 'Not provided' }}</strong>
+              </p>
+
+              @if (answer.reference) {
+                <p class="review-reference">
+                  Reference:
+                  <a [href]="answer.reference" target="_blank" rel="noopener noreferrer">
+                    Open source
+                  </a>
+                </p>
+              }
+            </article>
+          }
+        </div>
+      </section>
+    </div>
+  }
+</section>

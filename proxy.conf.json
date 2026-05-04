@@ -1,0 +1,13 @@
+{
+  "/backend-api": {
+    "target": "https://stood-caddy-stapling.ngrok-free.dev",
+    "secure": true,
+    "changeOrigin": true,
+    "headers": {
+      "ngrok-skip-browser-warning": "true"
+    },
+    "pathRewrite": {
+      "^/backend-api": "/api"
+    }
+  }
+}

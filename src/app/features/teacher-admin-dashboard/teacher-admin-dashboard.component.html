@@ -1,0 +1,62 @@
+<section class="page-shell">
+  <img
+    class="background-glow"
+    src="assets/images/Group 41.png"
+    alt=""
+    aria-hidden="true"
+  />
+
+  <main class="page-layout">
+    <section class="metric-grid" aria-label="Teacher metrics">
+      @for (metric of metrics; track metric.label) {
+        <article class="metric-card">
+          <p>{{ metric.label }}</p>
+          <strong>{{ metric.value }}</strong>
+          <span>{{ metric.note }}</span>
+        </article>
+      }
+    </section>
+
+    <section class="content-grid">
+      <article class="panel panel-large">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Approval Queue</p>
+            <h2>Content waiting for action</h2>
+          </div>
+          <a [routerLink]="routeLinks.courseContents">Open library</a>
+        </div>
+
+        <div class="stack-list">
+          @for (item of reviewQueue; track item.course) {
+            <article class="list-row">
+              <div>
+                <strong>{{ item.course }}</strong>
+                <p>{{ item.owner }}</p>
+              </div>
+              <span class="status-pill">{{ item.status }}</span>
+            </article>
+          }
+        </div>
+      </article>
+
+      <article class="panel">
+        <div class="panel-head">
+          <div>
+            <p class="eyebrow">Activity</p>
+            <h2>What changed today</h2>
+          </div>
+        </div>
+
+        <div class="timeline">
+          @for (item of activityFeed; track item.title) {
+            <article class="timeline-item">
+              <strong>{{ item.title }}</strong>
+              <p>{{ item.detail }}</p>
+            </article>
+          }
+        </div>
+      </article>
+    </section>
+  </main>
+</section>

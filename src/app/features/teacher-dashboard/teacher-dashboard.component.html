@@ -1,0 +1,565 @@
+<section class="page-shell">
+  <img
+    class="background-glow"
+    src="assets/images/Group 41.png"
+    alt=""
+    aria-hidden="true"
+  />
+
+  <main class="page-layout">
+    @if (loadError()) {
+      <section class="state-panel state-panel-error">
+        <span class="state-badge">Unavailable</span>
+        <h2>Teacher dashboard could not be loaded</h2>
+        <p>{{ loadError() }}</p>
+      </section>
+    } @else if (!isLoading()) {
+      <section class="analysis-shell">
+        <aside class="panel analysis-nav" aria-label="Teacher analysis navigation">
+          <div class="panel-head compact-head">
+            <div>
+              <p class="eyebrow">Analysis Center</p>
+              <h2>Teacher insights</h2>
+            </div>
+          </div>
+
+          <div class="analysis-menu">
+            @for (category of analysisCategories; track category.id) {
+              <button
+                class="analysis-tab"
+                type="button"
+                [class.analysis-tab-active]="activeAnalysis() === category.id"
+                (click)="selectAnalysis(category.id)"
+              >
+                <span>{{ category.label }}</span>
+                <small>{{ category.endpoint }}</small>
+              </button>
+            }
+          </div>
+
+          <div class="side-section">
+            <p class="eyebrow">Student focus</p>
+            <div class="student-picker">
+              @for (student of students(); track student.studentId) {
+                <button
+                  class="student-picker-card"
+                  type="button"
+                  [class.student-picker-card-active]="selectedStudent()?.studentId === student.studentId"
+                  (click)="selectStudent(student.studentId)"
+                >
+                  <strong>{{ student.fullName }}</strong>
+                  <span>{{ student.averageScore }}% avg · {{ student.attemptsCount }} attempts</span>
+                </button>
+              } @empty {
+                <div class="empty-card compact-empty">
+                  <p>No students available yet.</p>
+                </div>
+              }
+            </div>
+          </div>
+
+          @if (studentProgress(); as progress) {
+            <div class="side-section">
+              <p class="eyebrow">Topics</p>
+              <div class="topic-picker">
+                @for (topic of progress.topics; track topic.topicId) {
+                  <button
+                    class="topic-pill"
+                    type="button"
+                    [class.topic-pill-active]="selectedTopic()?.topicId === topic.topicId"
+                    (click)="openTopicAttempts(topic.topicId)"
+                  >
+                    <span>{{ topic.topicName }}</span>
+                    <small>{{ topic.averageScore }}% avg</small>
+                  </button>
+                } @empty {
+                  <div class="empty-card compact-empty">
+                    <p>No topic progress yet.</p>
+                  </div>
+                }
+              </div>
+            </div>
+          }
+        </aside>
+
+        <section class="analysis-content">
+          @if (analysisError()) {
+            <section class="state-panel state-panel-error">
+              <span class="state-badge">Analysis unavailable</span>
+              <h2>Could not load this analysis</h2>
+              <p>{{ analysisError() }}</p>
+            </section>
+          }
+
+          @if (isAnalysisLoading()) {
+            <section class="state-panel loading-panel">
+              <span class="state-badge">Loading analysis</span>
+              <h2>Preparing teacher insights</h2>
+              <p>We are loading the selected report from the backend.</p>
+            </section>
+          }
+
+          @switch (activeAnalysis()) {
+            @case ('overview') {
+              <section class="metric-grid">
+                @for (metric of metrics(); track metric.label) {
+                  <article class="metric-card">
+                    <span>{{ metric.label }}</span>
+                    <strong>{{ metric.value }}</strong>
+                    <p>{{ metric.note }}</p>
+                  </article>
+                }
+              </section>
+
+              <section class="dashboard-grid">
+                <article class="panel chart-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">Attempts Outcome</p>
+                      <h2>Passed vs failed attempts</h2>
+                    </div>
+                  </div>
+
+                  @if (passFailChartOptions(); as chart) {
+                    <div class="chart-shell">
+                      <apx-chart
+                        [series]="chart.series"
+                        [chart]="chart.chart"
+                        [labels]="chart.labels"
+                        [legend]="chart.legend"
+                        [tooltip]="chart.tooltip"
+                        [stroke]="chart.stroke"
+                        [fill]="chart.fill"
+                        [states]="chart.states"
+                        [plotOptions]="chart.plotOptions"
+                        [responsive]="chart.responsive"
+                        [colors]="chart.colors"
+                        [noData]="chart.noData"
+                      />
+                    </div>
+                  }
+                </article>
+
+                <article class="panel chart-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">Weak Topics</p>
+                      <h2>Lowest performing topics</h2>
+                    </div>
+                  </div>
+
+                  @if (weakTopicsChartOptions(); as chart) {
+                    <div class="chart-shell">
+                      <apx-chart
+                        [series]="chart.series"
+                        [chart]="chart.chart"
+                        [colors]="chart.colors"
+                        [plotOptions]="chart.plotOptions"
+                        [dataLabels]="chart.dataLabels"
+                        [fill]="chart.fill"
+                        [xaxis]="chart.xaxis"
+                        [yaxis]="chart.yaxis"
+                        [grid]="chart.grid"
+                        [tooltip]="chart.tooltip"
+                        [legend]="chart.legend"
+                        [states]="chart.states"
+                        [noData]="chart.noData"
+                        [responsive]="chart.responsive"
+                      />
+                    </div>
+                  }
+                </article>
+              </section>
+
+              <section class="lists-grid">
+                <article class="panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">Top Students</p>
+                      <h2>Highest performing learners</h2>
+                    </div>
+                  </div>
+
+                  <div class="student-list">
+                    @for (student of topStudents(); track student.studentId) {
+                      <article class="student-card student-card-success">
+                        <div>
+                          <strong>{{ student.fullName }}</strong>
+                          <p>{{ student.email }}</p>
+                        </div>
+                        <div class="student-score">
+                          <span>Avg {{ student.averageScore }}%</span>
+                          <span>Best {{ student.bestScore ?? student.averageScore }}%</span>
+                          <span>{{ student.attemptsCount }} attempts</span>
+                        </div>
+                      </article>
+                    } @empty {
+                      <article class="empty-card">
+                        <p>No top students data yet.</p>
+                      </article>
+                    }
+                  </div>
+                </article>
+
+                <article class="panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">Weak Students</p>
+                      <h2>Students needing support</h2>
+                    </div>
+                  </div>
+
+                  <div class="student-list">
+                    @for (student of weakStudents(); track student.studentId) {
+                      <article class="student-card student-card-warning">
+                        <div>
+                          <strong>{{ student.fullName }}</strong>
+                          <p>{{ student.email }}</p>
+                        </div>
+                        <div class="student-score">
+                          <span>Avg {{ student.averageScore }}%</span>
+                          <span>{{ student.attemptsCount }} attempts</span>
+                        </div>
+                      </article>
+                    } @empty {
+                      <article class="empty-card">
+                        <p>No weak students data yet.</p>
+                      </article>
+                    }
+                  </div>
+                </article>
+              </section>
+            }
+
+            @case ('students') {
+              <article class="panel chart-panel wide-panel">
+                <div class="panel-head">
+                  <div>
+                    <p class="eyebrow">/teacher/students</p>
+                    <h2>Students score distribution</h2>
+                  </div>
+                </div>
+
+                @if (studentScoresChartOptions(); as chart) {
+                  <div class="chart-shell">
+                    <apx-chart
+                      [series]="chart.series"
+                      [chart]="chart.chart"
+                      [colors]="chart.colors"
+                      [plotOptions]="chart.plotOptions"
+                      [dataLabels]="chart.dataLabels"
+                      [fill]="chart.fill"
+                      [stroke]="chart.stroke"
+                      [markers]="chart.markers"
+                      [xaxis]="chart.xaxis"
+                      [yaxis]="chart.yaxis"
+                      [grid]="chart.grid"
+                      [tooltip]="chart.tooltip"
+                      [legend]="chart.legend"
+                      [states]="chart.states"
+                      [noData]="chart.noData"
+                      [responsive]="chart.responsive"
+                    />
+                  </div>
+                }
+              </article>
+
+              <section class="student-roster">
+                @for (student of students(); track student.studentId) {
+                  <article class="student-table-card">
+                    <div>
+                      <strong>{{ student.fullName }}</strong>
+                      <p>{{ student.email }}</p>
+                      <p>{{ student.phone }}</p>
+                    </div>
+                    <div class="student-table-stats">
+                      <span>{{ student.completedQuizzes }} completed</span>
+                      <span>{{ student.attemptsCount }} attempts</span>
+                      <span>{{ student.averageScore }}% avg</span>
+                      <span>{{ student.bestScore }}% best</span>
+                    </div>
+                    <button type="button" (click)="selectStudent(student.studentId); selectAnalysis('progress')">
+                      Open progress
+                    </button>
+                  </article>
+                } @empty {
+                  <article class="empty-card">
+                    <p>No students found.</p>
+                  </article>
+                }
+              </section>
+            }
+
+            @case ('progress') {
+              @if (studentProgress(); as progress) {
+                <section class="detail-hero panel">
+                  <div>
+                    <p class="eyebrow">/teacher/students/{{ progress.student.studentId }}/progress</p>
+                    <h2>{{ progress.student.fullName }}</h2>
+                    <p>{{ progress.student.email }} · {{ progress.student.phone }}</p>
+                  </div>
+                  <span class="status-chip">
+                    {{ progress.summary.averageScore }}% average
+                  </span>
+                </section>
+
+                <section class="metric-grid">
+                  @for (metric of studentProgressMetrics(); track metric.label) {
+                    <article class="metric-card">
+                      <span>{{ metric.label }}</span>
+                      <strong>{{ metric.value }}</strong>
+                      <p>{{ metric.note }}</p>
+                    </article>
+                  }
+                </section>
+
+                <article class="panel chart-panel wide-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">Topic analysis</p>
+                      <h2>Latest, average, and best score by topic</h2>
+                    </div>
+                  </div>
+
+                  @if (topicProgressChartOptions(); as chart) {
+                    <div class="chart-shell">
+                      <apx-chart
+                        [series]="chart.series"
+                        [chart]="chart.chart"
+                        [colors]="chart.colors"
+                        [plotOptions]="chart.plotOptions"
+                        [dataLabels]="chart.dataLabels"
+                        [fill]="chart.fill"
+                        [stroke]="chart.stroke"
+                        [markers]="chart.markers"
+                        [xaxis]="chart.xaxis"
+                        [yaxis]="chart.yaxis"
+                        [grid]="chart.grid"
+                        [tooltip]="chart.tooltip"
+                        [legend]="chart.legend"
+                        [states]="chart.states"
+                        [noData]="chart.noData"
+                        [responsive]="chart.responsive"
+                      />
+                    </div>
+                  }
+                </article>
+
+                <section class="topic-grid">
+                  @for (topic of progress.topics; track topic.topicId) {
+                    <article class="topic-card">
+                      <div>
+                        <span class="status-dot" [class.status-dot-warning]="!topic.isImproving"></span>
+                        <p class="eyebrow">{{ topic.isImproving ? 'Improving' : 'Needs follow-up' }}</p>
+                        <h3>{{ topic.topicName }}</h3>
+                      </div>
+                      <div class="topic-stats">
+                        <span>Latest {{ topic.latestScore }}%</span>
+                        <span>Average {{ topic.averageScore }}%</span>
+                        <span>Best {{ topic.bestScore }}%</span>
+                        <span>{{ topic.attemptsCount }} attempts</span>
+                      </div>
+                      <button type="button" (click)="openTopicAttempts(topic.topicId)">
+                        View attempts
+                      </button>
+                    </article>
+                  } @empty {
+                    <article class="empty-card">
+                      <p>This student has no topic progress yet.</p>
+                    </article>
+                  }
+                </section>
+              } @else {
+                <section class="state-panel">
+                  <span class="state-badge">Choose student</span>
+                  <h2>Select a student to load progress</h2>
+                  <p>Use the left panel to choose which learner you want to analyze.</p>
+                </section>
+              }
+            }
+
+            @case ('attempts') {
+              @if (topicAttempts(); as attempts) {
+                <section class="detail-hero panel">
+                  <div>
+                    <p class="eyebrow">
+                      /teacher/students/{{ attempts.student.studentId }}/topics/{{ attempts.topic.topicId }}/quiz-attempts
+                    </p>
+                    <h2>{{ attempts.topic.topicName }}</h2>
+                    <p>{{ attempts.student.fullName }} · {{ attempts.attempts.length }} attempts</p>
+                  </div>
+                  <span class="status-chip">
+                    {{ attempts.attempts.length }} records
+                  </span>
+                </section>
+
+                <article class="panel chart-panel wide-panel">
+                  <div class="panel-head">
+                    <div>
+                      <p class="eyebrow">Attempts timeline</p>
+                      <h2>Score movement over submitted attempts</h2>
+                    </div>
+                  </div>
+
+                  @if (attemptsTrendChartOptions(); as chart) {
+                    <div class="chart-shell">
+                      <apx-chart
+                        [series]="chart.series"
+                        [chart]="chart.chart"
+                        [colors]="chart.colors"
+                        [plotOptions]="chart.plotOptions"
+                        [dataLabels]="chart.dataLabels"
+                        [fill]="chart.fill"
+                        [stroke]="chart.stroke"
+                        [markers]="chart.markers"
+                        [xaxis]="chart.xaxis"
+                        [yaxis]="chart.yaxis"
+                        [grid]="chart.grid"
+                        [tooltip]="chart.tooltip"
+                        [legend]="chart.legend"
+                        [states]="chart.states"
+                        [noData]="chart.noData"
+                        [responsive]="chart.responsive"
+                      />
+                    </div>
+                  }
+                </article>
+
+                <section class="attempt-grid">
+                  @for (attempt of attempts.attempts; track attempt.attemptId) {
+                    <article class="attempt-card" [class.attempt-card-pass]="attempt.passed">
+                      <div>
+                        <p class="eyebrow">Attempt #{{ attempt.attemptId }}</p>
+                        <h3>{{ attempt.scorePercentage }}%</h3>
+                        <p>{{ formatDateLabel(attempt.submittedAt) }}</p>
+                      </div>
+                      <div class="attempt-stat-row">
+                        <span>{{ attempt.correctAnswersCount }} correct</span>
+                        <span>{{ attempt.wrongAnswersCount }} wrong</span>
+                        <span>{{ attempt.totalQuestions }} questions</span>
+                      </div>
+                      <button type="button" (click)="openAttemptReview(attempt.attemptId)">
+                        Review answers
+                      </button>
+                    </article>
+                  } @empty {
+                    <article class="empty-card">
+                      <p>No quiz attempts are available for this topic.</p>
+                    </article>
+                  }
+                </section>
+              } @else {
+                <section class="state-panel">
+                  <span class="state-badge">Choose topic</span>
+                  <h2>Select a topic to load attempts</h2>
+                  <p>Open student progress, then choose one of the returned topics.</p>
+                </section>
+              }
+            }
+
+            @case ('review') {
+              @if (selectedAttemptDetail(); as detail) {
+                <section class="review-layout">
+                  <article class="panel review-summary">
+                    <div>
+                      <p class="eyebrow">/teacher/quiz-attempts/{{ detail.attemptId }}</p>
+                      <h2>{{ detail.topic.topicName }}</h2>
+                      <p>{{ detail.student.fullName }} · {{ formatDateLabel(detail.summary.submittedAt) }}</p>
+                    </div>
+
+                    @if (attemptResultChartOptions(); as chart) {
+                      <apx-chart
+                        [series]="chart.series"
+                        [chart]="chart.chart"
+                        [labels]="chart.labels"
+                        [legend]="chart.legend"
+                        [tooltip]="chart.tooltip"
+                        [stroke]="chart.stroke"
+                        [fill]="chart.fill"
+                        [states]="chart.states"
+                        [plotOptions]="chart.plotOptions"
+                        [responsive]="chart.responsive"
+                        [colors]="chart.colors"
+                        [noData]="chart.noData"
+                      />
+                    }
+
+                    <div class="attempt-stat-row">
+                      <span>{{ detail.summary.correctAnswersCount }} correct</span>
+                      <span>{{ detail.summary.wrongAnswersCount }} wrong</span>
+                      <span>{{ detail.summary.scorePercentage }}% score</span>
+                    </div>
+                  </article>
+
+                  <article class="panel answer-panel">
+                    <div class="panel-head">
+                      <div>
+                        <p class="eyebrow">Answer review</p>
+                        <h2>Question-by-question result</h2>
+                      </div>
+                    </div>
+
+                    <div class="answer-list">
+                      @for (answer of detail.answers; track answer.questionId; let answerIndex = $index) {
+                        <article class="answer-card" [class.answer-card-correct]="answer.isCorrect">
+                          <div class="answer-head">
+                            <span>{{ answerIndex + 1 }}</span>
+                            <div>
+                              <h3>{{ answer.questionText }}</h3>
+                              <p>{{ answer.isCorrect ? 'Correct' : 'Needs review' }}</p>
+                            </div>
+                          </div>
+
+                          @if (answer.choices.length > 0) {
+                            <div class="choice-list">
+                              @for (choice of answer.choices; track choice.key) {
+                                <div
+                                  class="choice-row"
+                                  [class.choice-correct]="isCorrectChoice(answer, choice)"
+                                  [class.choice-selected-wrong]="isSelectedWrongChoice(answer, choice)"
+                                >
+                                  <span>{{ choice.key }}</span>
+                                  <p>{{ choice.text }}</p>
+                                </div>
+                              }
+                            </div>
+                          } @else {
+                            <div class="answer-pair">
+                              <div class="answer-pill answer-pill-selected">
+                                <span>Selected</span>
+                                <strong>{{ answer.selectedAnswerText }}</strong>
+                              </div>
+                              <div class="answer-pill answer-pill-correct">
+                                <span>Correct</span>
+                                <strong>{{ answer.correctAnswerText }}</strong>
+                              </div>
+                            </div>
+                          }
+
+                          <p class="correct-answer-line">
+                            Correct answer:
+                            <strong>{{ answer.correctAnswerText }}</strong>
+                          </p>
+                        </article>
+                      } @empty {
+                        <article class="empty-card">
+                          <p>No answer details were returned for this attempt.</p>
+                        </article>
+                      }
+                    </div>
+                  </article>
+                </section>
+              } @else {
+                <section class="state-panel">
+                  <span class="state-badge">Choose attempt</span>
+                  <h2>Select an attempt to review</h2>
+                  <p>Open topic attempts, then choose a quiz attempt to inspect answers.</p>
+                </section>
+              }
+            }
+          }
+        </section>
+      </section>
+    }
+  </main>
+</section>

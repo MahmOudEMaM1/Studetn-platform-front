@@ -1,0 +1,102 @@
+<section class="page-shell">
+  <img
+    class="background-glow"
+    src="assets/images/Group 41.png"
+    alt=""
+    aria-hidden="true"
+  />
+
+  <main class="page-layout">
+    @if (loadError()) {
+      <section class="state-panel state-panel-error">
+        <span class="state-badge">Unavailable</span>
+        <h2>Tabs could not be loaded</h2>
+        <p>{{ loadError() }}</p>
+      </section>
+    } @else if (!isLoading() && !tabs().length) {
+      <section class="state-panel">
+        <span class="state-badge">Empty</span>
+        <h2>No tabs are available yet</h2>
+        <p>Once the catalog is populated, the cards will appear here automatically.</p>
+      </section>
+    } @else if (tabs().length) {
+      <section class="tabs-grid">
+        @for (tab of tabs(); track trackTab($index, tab)) {
+          <article
+            class="tab-card"
+            [class.tab-card-active]="isActionCardVisible(tab.id)"
+            (mouseenter)="setHoveredTab(tab.id)"
+            (mouseleave)="clearHoveredTab(tab.id)"
+            (click)="openTab(tab.id)"
+          >
+            @let scene = previewScene(tab);
+            @let tabImageUrl = topicImageUrl(tab);
+
+            @if (tab.badge) {
+              <span class="tab-badge">{{ tab.badge }}</span>
+            }
+
+            <div class="tab-card-head">
+              <h2>{{ tab.title }}</h2>
+              <p>{{ tab.subtitle }}</p>
+            </div>
+
+            <div class="tab-preview">
+              @if (tabImageUrl) {
+                <img [src]="tabImageUrl" [alt]="tab.title" />
+              } @else {
+                <div class="tab-preview-fallback" [class]="'tab-preview-fallback is-' + scene.layout" aria-hidden="true">
+                  <div class="preview-topline">
+                    <span class="preview-dot"></span>
+                    <span class="preview-label">{{ scene.label }}</span>
+                  </div>
+
+                  @if (scene.layout === 'molecule') {
+                    <div class="preview-molecule">
+                      <span class="molecule-node node-a"></span>
+                      <span class="molecule-node node-b"></span>
+                      <span class="molecule-node node-c"></span>
+                      <span class="molecule-node node-d"></span>
+                      <span class="molecule-link link-ab"></span>
+                      <span class="molecule-link link-bc"></span>
+                      <span class="molecule-link link-cd"></span>
+                      <span class="molecule-link link-ad"></span>
+                    </div>
+                  } @else if (scene.layout === 'columns') {
+                    <div class="preview-columns">
+                      <span class="column-bar bar-1"></span>
+                      <span class="column-bar bar-2"></span>
+                      <span class="column-bar bar-3"></span>
+                      <span class="column-bar bar-4"></span>
+                    </div>
+                  } @else if (scene.layout === 'process') {
+                    <div class="preview-process">
+                      <span class="process-step">Start</span>
+                      <span class="process-arrow"></span>
+                      <span class="process-step">Mix</span>
+                      <span class="process-arrow"></span>
+                      <span class="process-step">Review</span>
+                    </div>
+                  } @else {
+                    <div class="preview-board">
+                      <span class="board-card card-wide"></span>
+                      <span class="board-card"></span>
+                      <span class="board-card"></span>
+                      <span class="board-card card-tall"></span>
+                    </div>
+                  }
+
+                  <div class="preview-chip-grid">
+                    @for (item of scene.chips; track item) {
+                      <span>{{ item }}</span>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </article>
+        }
+      </section>
+    }
+  </main>
+</section>

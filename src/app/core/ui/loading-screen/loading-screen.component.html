@@ -1,0 +1,21 @@
+<section class="loading-shell" [class.loading-shell-compact]="compact()">
+  <div class="loading-media">
+    <video
+      class="loading-video"
+      autoplay
+      muted
+      loop
+      playsinline
+      preload="auto"
+      aria-hidden="true"
+    >
+      <source src="assets/videos/Chemistry_loading.mp4" type="video/mp4" />
+    </video>
+  </div>
+
+  <div class="loading-copy">
+    <span class="loading-label">{{ label() }}</span>
+    <h2>{{ title() }}</h2>
+    <p>{{ description() }}</p>
+  </div>
+</section>

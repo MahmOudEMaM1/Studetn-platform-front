@@ -1,0 +1,217 @@
+<section class="page-shell">
+  <img
+    class="background-glow"
+    src="assets/images/Group 41.png"
+    alt=""
+    aria-hidden="true"
+  />
+
+  <main class="page-layout">
+    @if (loadError()) {
+      <section class="state-panel state-panel-error">
+        <span class="state-badge">Unavailable</span>
+        <h2>Community feed could not be loaded</h2>
+        <p>{{ loadError() }}</p>
+      </section>
+    } @else if (!isLoading()) {
+      <section class="community-grid">
+        <aside class="panel composer-panel">
+          <div class="panel-head">
+            <div>
+              @if (isStudentView()) {
+                <p class="eyebrow">New Question</p>
+                <h2>Ask your teacher</h2>
+              } @else {
+                <p class="eyebrow">Teacher View</p>
+                <h2>Support the class</h2>
+              }
+            </div>
+            <span class="user-chip">{{ activeUserName() }}</span>
+          </div>
+
+          @if (isStudentView()) {
+            <label class="field">
+              <span>Your question</span>
+              <textarea
+                [ngModel]="questionDraft()"
+                (ngModelChange)="questionDraft.set($event)"
+                rows="7"
+                placeholder="Write the exact concept, the step that feels confusing, or the answer you already tried."
+              ></textarea>
+            </label>
+
+            <button class="primary-action" type="button" (click)="submitQuestion()">
+              {{ isSubmittingQuestion() ? 'Posting...' : 'Post question' }}
+            </button>
+          } @else {
+            <div class="teacher-note">
+              <p>
+                Teachers can review every student question from the feed and reply directly from the
+                selected discussion panel.
+              </p>
+            </div>
+          }
+
+          <div class="stats-grid">
+            <article class="mini-stat">
+              <strong>{{ questions().length }}</strong>
+              <span>Questions</span>
+            </article>
+            <article class="mini-stat">
+              <strong>{{ totalReplies() }}</strong>
+              <span>Replies</span>
+            </article>
+            <article class="mini-stat">
+              <strong>{{ unansweredCount() }}</strong>
+              <span>Need reply</span>
+            </article>
+          </div>
+        </aside>
+
+        <section class="panel feed-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Discussion Feed</p>
+              <h2>Latest questions from students</h2>
+            </div>
+          </div>
+
+          <div class="filter-row" role="tablist" aria-label="Question filters">
+            @for (filter of filters; track filter.key) {
+              <button
+                type="button"
+                class="filter-chip"
+                [class.filter-chip-active]="selectedFilter() === filter.key"
+                (click)="setFilter(filter.key)"
+              >
+                {{ filter.label }}
+              </button>
+            }
+          </div>
+
+          <div class="thread-list">
+            @for (question of filteredQuestions(); track question.id) {
+              <article
+                class="thread-card"
+                [class.thread-card-active]="selectedQuestion().id === question.id"
+                (click)="selectQuestion(question.id)"
+              >
+                <div class="thread-votes">
+                  <strong>{{ question.replies.length }}</strong>
+                  <span>replies</span>
+                </div>
+
+                <div class="thread-copy">
+                  <div class="thread-meta">
+                    <span>{{ question.studentName }}</span>
+                    <span>{{ question.createdAt }}</span>
+                    @if (question.solved) {
+                      <span class="thread-state thread-state-solved">Answered</span>
+                    } @else {
+                      <span class="thread-state">Waiting</span>
+                    }
+                  </div>
+
+                  <h3>{{ question.question }}</h3>
+
+                  <div class="thread-foot">
+                    <span>Question #{{ question.id }}</span>
+                    <span>{{ question.isVisible ? 'Visible' : 'Hidden' }}</span>
+                  </div>
+                </div>
+              </article>
+            } @empty {
+              <article class="empty-card">
+                <p>No questions found for this filter.</p>
+              </article>
+            }
+          </div>
+        </section>
+
+        <section class="panel detail-panel">
+          @if (selectedQuestion(); as question) {
+            <div class="detail-head">
+              <div class="detail-meta">
+                <p class="eyebrow">Selected Question</p>
+                <div class="detail-badges">
+                  @if (question.solved) {
+                    <span class="thread-state thread-state-solved">Answered</span>
+                  } @else {
+                    <span class="thread-state">Needs a reply</span>
+                  }
+                </div>
+              </div>
+
+              <div class="detail-author">
+                <span class="author-avatar">{{ question.studentName.charAt(0) }}</span>
+                <div>
+                  <strong>{{ question.studentName }}</strong>
+                  <p>{{ question.createdAt }}</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="detail-question">
+              <h2>{{ question.question }}</h2>
+              <p>
+                {{ question.replies.length }} replies so far. Keep the discussion clear and focused
+                on the student’s exact confusion.
+              </p>
+            </div>
+
+            <div class="comments-head">
+              <div>
+                <p class="eyebrow">Replies</p>
+                <h3>{{ question.replies.length }} teacher replies</h3>
+              </div>
+            </div>
+
+            <div class="comment-list">
+              @for (reply of question.replies; track trackReply($index, reply)) {
+                <article class="comment-card">
+                  <div class="comment-top">
+                    <div class="comment-author">
+                      <span class="author-avatar author-avatar-small">
+                        {{ reply.teacherName.charAt(0) }}
+                      </span>
+                      <div>
+                        <strong>{{ reply.teacherName }}</strong>
+                        <p>Teacher . {{ reply.createdAt }}</p>
+                      </div>
+                    </div>
+
+                    <span class="helpful-badge">Teacher reply</span>
+                  </div>
+
+                  <p class="comment-body">{{ reply.reply }}</p>
+                </article>
+              } @empty {
+                <article class="empty-card">
+                  <p>No replies yet. {{ isTeacherView() ? 'You can answer this question now.' : 'A teacher reply will appear here.' }}</p>
+                </article>
+              }
+            </div>
+
+            @if (isTeacherView()) {
+              <div class="reply-box">
+                <label class="field">
+                  <span>Add your reply</span>
+                  <textarea
+                    [ngModel]="replyDraft()"
+                    (ngModelChange)="replyDraft.set($event)"
+                    rows="5"
+                    placeholder="Share the explanation, example, or shortcut that will help the student."
+                  ></textarea>
+                </label>
+
+                <button class="primary-action" type="button" (click)="submitReply()">
+                  {{ isSubmittingReply() ? 'Posting...' : 'Post reply' }}
+                </button>
+              </div>
+            }
+          }
+        </section>
+      </section>
+    }
+  </main>
+</section>

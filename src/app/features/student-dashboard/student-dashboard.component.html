@@ -1,0 +1,67 @@
+<section class="page-shell">
+  <img
+    class="background-glow"
+    src="assets/images/Group 41.png"
+    alt=""
+    aria-hidden="true"
+  />
+
+  <main class="page-layout">
+    @if (loadError()) {
+      <section class="state-panel state-panel-error">
+        <span class="state-badge">Unavailable</span>
+        <h2>Student progress could not be loaded</h2>
+        <p>{{ loadError() }}</p>
+      </section>
+    } @else if (!isLoading() && chartOptions(); as chart) {
+      <section class="dashboard-grid">
+        <article class="panel chart-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Attempts History</p>
+              <h2>Quiz score progression over time</h2>
+            </div>
+          </div>
+
+          <div class="chart-shell">
+            <apx-chart
+              [series]="chart.series"
+              [chart]="chart.chart"
+              [colors]="chart.colors"
+              [plotOptions]="chart.plotOptions"
+              [dataLabels]="chart.dataLabels"
+              [fill]="chart.fill"
+              [xaxis]="chart.xaxis"
+              [yaxis]="chart.yaxis"
+              [grid]="chart.grid"
+              [tooltip]="chart.tooltip"
+              [stroke]="chart.stroke"
+              [legend]="chart.legend"
+              [states]="chart.states"
+              [responsive]="chart.responsive"
+            />
+          </div>
+        </article>
+
+        <article class="panel metrics-panel">
+          <div class="panel-head">
+            <div>
+              <p class="eyebrow">Snapshot</p>
+              <h2>Key progress metrics</h2>
+            </div>
+          </div>
+
+          <div class="metric-list">
+            @for (metric of metrics(); track metric.label) {
+              <article class="metric-card">
+                <span>{{ metric.label }}</span>
+                <strong>{{ metric.value }}</strong>
+                <p>{{ metric.note }}</p>
+              </article>
+            }
+          </div>
+        </article>
+      </section>
+    }
+  </main>
+</section>

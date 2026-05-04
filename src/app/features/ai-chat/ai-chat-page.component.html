@@ -1,0 +1,148 @@
+<section class="chat-shell" [class.chat-shell-active]="hasConversation()">
+  <div class="chat-card">
+    <img
+      class="background-glow"
+      src="assets/images/Group 41.png"
+      alt=""
+      aria-hidden="true"
+    />
+
+    <header class="hero-block">
+      <div class="hero-logo">
+        <img src="assets/images/Ai-logo.png" alt="AI assistant" />
+      </div>
+      <h1>Ask AI Mentor anything</h1>
+    </header>
+
+    <div class="chat-composer" [class.chat-composer-active]="hasConversation()">
+      @if (!hasConversation()) {
+        <div class="empty-chat-spacer" aria-hidden="true"></div>
+      } @else {
+        <div class="conversation-stack">
+          @for (message of messages(); track message.id) {
+            <article
+              class="message-group"
+              [class.message-group-user]="message.role === 'user'"
+              [class.message-group-ai]="message.role === 'ai'"
+              [class.message-group-rtl]="isRtlMessage(message)"
+            >
+              <p class="message-author">{{ message.role === 'user' ? 'ME' : 'AI' }}</p>
+
+              @if (message.role === 'user') {
+                <div
+                  class="message-bubble message-bubble-user"
+                  [attr.dir]="isRtlMessage(message) ? 'rtl' : 'ltr'"
+                >
+                  {{ message.text }}
+                </div>
+              } @else if (message.status === 'loading') {
+                <div class="message-bubble message-bubble-ai message-bubble-loading">
+                  <div class="loading-badge">
+                    <span class="loading-badge-ring"></span>
+                    <img
+                      src="assets/images/message-loading-logo.png"
+                      alt=""
+                      aria-hidden="true"
+                    />
+                  </div>
+                  <span class="loading-shimmer"></span>
+                </div>
+              } @else {
+                <div
+                  class="message-bubble message-bubble-ai"
+                  [attr.dir]="isRtlMessage(message) ? 'rtl' : 'ltr'"
+                >
+                  <div class="response-markdown">
+                    @for (block of message.blocks; track block.id) {
+                      @if (block.type === 'paragraph') {
+                        <p class="response-paragraph">
+                          @for (segment of block.segments; track $index) {
+                            @if (segment.bold) {
+                              <strong>{{ segment.text }}</strong>
+                            } @else {
+                              <span>{{ segment.text }}</span>
+                            }
+                          }
+                        </p>
+                      } @else {
+                        <p
+                          class="response-list-line"
+                          [class.response-list-line-nested]="block.level > 0"
+                        >
+                          <span class="response-marker">
+                            @if (block.type === 'ordered') {
+                              {{ block.marker }}
+                            } @else {
+                              <span aria-hidden="true">&bull;</span>
+                            }
+                          </span>
+                          <span>
+                            @for (segment of block.segments; track $index) {
+                              @if (segment.bold) {
+                                <strong>{{ segment.text }}</strong>
+                              } @else {
+                                <span>{{ segment.text }}</span>
+                              }
+                            }
+                          </span>
+                        </p>
+                      }
+                    }
+                  </div>
+
+                  @if (message.sources.length) {
+                    <div class="source-panel">
+                      <p class="source-heading">Sources</p>
+
+                      @for (source of message.sources; track source.sourceBook) {
+                        <article class="source-card">
+                          <div class="source-summary">
+                            <span class="source-book">{{ source.sourceBook }}</span>
+                            <span class="source-pages">
+                              @for (page of source.pages; track page) {
+                                <span class="source-page">p. {{ page }}</span>
+                              }
+                            </span>
+                          </div>
+                        </article>
+                      }
+                    </div>
+                  }
+                </div>
+              }
+            </article>
+          }
+        </div>
+      }
+
+      <form class="prompt-form" (submit)="$event.preventDefault(); submitPrompt()">
+        <label class="sr-only" for="prompt">Ask me anything about your projects</label>
+        <input
+          id="prompt"
+          type="text"
+          placeholder="Ask me anything about your projects"
+          autocomplete="off"
+          [ngModel]="prompt()"
+          (ngModelChange)="prompt.set($event)"
+          [disabled]="hasPendingResponse()"
+          name="prompt"
+        />
+        <button
+          class="send-button"
+          type="submit"
+          aria-label="Send prompt"
+          [disabled]="hasPendingResponse()"
+        >
+          <svg viewBox="0 0 28 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M2 22L26 12L2 2L6 10.5L17 12L6 13.5L2 22Z"
+              stroke="currentColor"
+              stroke-width="1.8"
+              stroke-linejoin="round"
+            />
+          </svg>
+        </button>
+      </form>
+    </div>
+  </div>
+</section>

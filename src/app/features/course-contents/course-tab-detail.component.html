@@ -1,0 +1,124 @@
+<section class="page-shell">
+  <img
+    class="background-glow"
+    src="assets/images/Group 41.png"
+    alt=""
+    aria-hidden="true"
+  />
+
+  <main class="page-layout">
+    @if (isLoading()) {
+      <section class="state-panel">
+        <span class="state-badge">Loading</span>
+        <h2>Preparing this tab</h2>
+        <p>We are fetching the topic structure for the selected tab.</p>
+      </section>
+    } @else if (loadError()) {
+      <section class="state-panel state-panel-error">
+        <span class="state-badge">Unavailable</span>
+        <h2>Tab details could not be loaded</h2>
+        <p>{{ loadError() }}</p>
+      </section>
+    } @else if (!tabDetails()) {
+      <section class="state-panel">
+        <span class="state-badge">Empty</span>
+        <h2>This tab is not available</h2>
+        <p>Return to the catalog and choose another tab.</p>
+      </section>
+    } @else {
+      <section
+        class="detail-layout"
+        [class.detail-layout-collapsed]="isTopicsPanelCollapsed()"
+      >
+        <aside
+          class="topics-panel"
+          [class.topics-panel-collapsed]="isTopicsPanelCollapsed()"
+        >
+          <div class="topics-panel-head">
+            @if (!isTopicsPanelCollapsed()) {
+              <div class="topics-panel-title">
+                <p class="eyebrow">Topics</p>
+                <h2>{{ tabDetails()!.topicsCount }} topics in this tab</h2>
+              </div>
+            }
+
+            <button
+              type="button"
+              class="topics-toggle"
+              [attr.aria-label]="isTopicsPanelCollapsed() ? 'Show topics panel' : 'Hide topics panel'"
+              (click)="toggleTopicsPanel()"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+                [class.topics-toggle-icon-collapsed]="isTopicsPanelCollapsed()"
+              >
+                <path d="M15 6L9 12L15 18" />
+              </svg>
+            </button>
+          </div>
+
+          @if (!isTopicsPanelCollapsed()) {
+            <div class="topics-list">
+              @for (topic of tabDetails()!.topics; track trackTopic($index, topic)) {
+                <button
+                  type="button"
+                  class="topic-item"
+                  [class.topic-item-active]="selectedTopic()?.id === topic.id"
+                  (click)="selectTopic(topic.id)"
+                >
+                  <span class="topic-order">{{ topicOrder($index) }}</span>
+                  <span class="topic-copy">
+                    <strong>{{ topic.title }}</strong>
+                    <span>{{ topic.termsCount }} terms - {{ topic.questionsCount }} questions</span>
+                  </span>
+                </button>
+              }
+            </div>
+          }
+        </aside>
+
+        <section class="content-panel">
+          @if (selectedTopic(); as topic) {
+            <div class="content-toolbar">
+              <a [routerLink]="routeLinks.courseContents">Back to tabs</a>
+            </div>
+
+            <div class="content-hero">
+              <div class="hero-copy">
+                <p class="eyebrow">{{ tabDetails()!.title }}</p>
+                <h1>{{ topic.title }}</h1>
+                <p>
+                  This section belongs to the {{ tabDetails()!.title }} tab and follows the exact
+                  topic order returned by the backend.
+                </p>
+              </div>
+            </div>
+
+            <div class="content-grid">
+              <article class="summary-card">
+                <p class="eyebrow">Overview</p>
+                <h2>What this topic contains</h2>
+                <p>
+                  Use this topic as the current study section. You can keep the returned order on
+                  the left and later attach real topic content here when the next endpoint is
+                  ready.
+                </p>
+              </article>
+
+              <article class="visual-card">
+                @if (tabImageUrl()) {
+                  <img [src]="tabImageUrl()!" [alt]="tabDetails()!.title" />
+                } @else {
+                  <div class="visual-fallback" aria-hidden="true">
+                    <span>{{ topic.title }}</span>
+                  </div>
+                }
+              </article>
+            </div>
+          }
+        </section>
+      </section>
+    }
+  </main>
+</section>

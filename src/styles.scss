@@ -1,1 +1,113 @@
-/* You can add global styles to this file, and also import other style files */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap');
+
+:root {
+  color-scheme: light;
+  font-family: 'Outfit', 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+app-root {
+  display: block;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.page-shell {
+  height: 100dvh;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.page-shell > .background-glow {
+  position: fixed;
+  z-index: 0;
+}
+
+.page-shell > .page-layout {
+  position: relative;
+  top: 82px;
+  width: 100% !important;
+  height: calc(100% - 82px);
+  min-height: 0;
+  padding-block: 8px 96px;
+  margin-inline: 0 !important;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scroll-padding-block: 8px 96px;
+  scrollbar-color: rgba(36, 25, 36, 0.72) rgba(255, 255, 255, 0.28);
+  scrollbar-width: thin;
+}
+
+.page-shell > .page-layout > * {
+  width: min(100%, 1240px);
+  margin-inline: auto;
+}
+
+.page-shell > .page-layout > .detail-layout {
+  width: min(100%, 1720px);
+}
+
+.app-shell-has-nav .chat-card {
+  padding-top: 104px;
+}
+
+.app-shell-has-nav .chat-shell-active .chat-card {
+  padding-top: 96px;
+}
+
+@media (max-width: 640px) {
+  .page-shell > .page-layout {
+    top: 70px;
+    height: calc(100% - 70px);
+    padding-block: 6px 72px;
+    scroll-padding-block: 6px 72px;
+  }
+
+  .app-shell-has-nav .chat-card,
+  .app-shell-has-nav .chat-shell-active .chat-card {
+    padding-top: 78px;
+  }
+}
+
+.page-shell > .page-layout::-webkit-scrollbar {
+  width: 12px;
+}
+
+.page-shell > .page-layout::-webkit-scrollbar-track {
+  margin-block: 8px 34px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.28);
+}
+
+.page-shell > .page-layout::-webkit-scrollbar-thumb {
+  border: 3px solid rgba(246, 241, 236, 0.86);
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2f2435 0%, #17121b 100%);
+  background-clip: padding-box;
+  box-shadow: 0 12px 28px rgba(103, 90, 120, 0.18);
+}
+
+.page-shell > .page-layout::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(180deg, #473850 0%, #241924 100%);
+}
