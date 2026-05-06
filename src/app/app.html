@@ -110,7 +110,47 @@
         </div>
 
         <button type="button" class="app-logout-button" (click)="logout()">Logout</button>
+
+        <button
+          type="button"
+          class="app-menu-button"
+          [class.app-menu-button-active]="isMobileMenuOpen()"
+          [attr.aria-expanded]="isMobileMenuOpen()"
+          aria-label="Open navigation menu"
+          (click)="toggleMobileMenu()"
+        >
+          <span></span>
+          <span></span>
+          <span></span>
+        </button>
       </div>
+
+      @if (isMobileMenuOpen()) {
+        <section class="app-mobile-menu" aria-label="Mobile navigation">
+          <div class="app-mobile-user">
+            <span>{{ activeUserInitial() }}</span>
+            <div>
+              <strong>{{ activeUserName() }}</strong>
+              <small>{{ currentUser()?.role || 'workspace' }}</small>
+            </div>
+          </div>
+
+          <nav class="app-mobile-links" aria-label="Mobile app pages">
+            @for (link of navLinks(); track link.route) {
+              <a
+                [routerLink]="link.route"
+                routerLinkActive="app-nav-link-active"
+                [routerLinkActiveOptions]="{ exact: isExactNavLink(link.route) }"
+                (click)="closeMobileMenu()"
+              >
+                {{ link.label }}
+              </a>
+            }
+          </nav>
+
+          <button type="button" class="app-mobile-logout" (click)="logout()">Logout</button>
+        </section>
+      }
     </header>
   }
 

@@ -32,6 +32,7 @@ export class App {
   private readonly authSession = inject(AuthSessionService);
   private readonly notificationsCenter = inject(NotificationsCenterService);
   private readonly currentUrl = signal(this.router.url);
+  protected readonly isMobileMenuOpen = signal(false);
   protected readonly isAppLoading = this.appLoading.isVisible;
   protected readonly isAuthenticated = this.authSession.isAuthenticated;
   protected readonly currentUser = this.authSession.currentUser;
@@ -93,6 +94,7 @@ export class App {
       .subscribe((event) => {
         if (event instanceof NavigationStart) {
           this.currentUrl.set(event.url);
+          this.closeMobileMenu();
           this.appLoading.startNavigation();
           return;
         }
@@ -113,6 +115,7 @@ export class App {
   }
 
   protected toggleNotifications(): void {
+    this.closeMobileMenu();
     this.notificationsCenter.togglePanel();
   }
 
@@ -145,7 +148,17 @@ export class App {
     this.authSession.clear();
     this.notificationsCenter.stopPolling();
     this.notificationsCenter.closePanel();
+    this.closeMobileMenu();
     void this.router.navigate([appRouteLinks.login]);
+  }
+
+  protected toggleMobileMenu(): void {
+    this.notificationsCenter.closePanel();
+    this.isMobileMenuOpen.update((isOpen) => !isOpen);
+  }
+
+  protected closeMobileMenu(): void {
+    this.isMobileMenuOpen.set(false);
   }
 
   protected isExactNavLink(route: string): boolean {
