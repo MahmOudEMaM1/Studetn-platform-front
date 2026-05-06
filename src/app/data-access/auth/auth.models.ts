@@ -3,7 +3,7 @@ export type LoginRole = 'admin' | 'teacher' | 'student';
 export interface LoginRequest {
   readonly username: string;
   readonly password: string;
-  readonly device_name: string;
+  readonly deviceName: string;
   readonly role: LoginRole;
 }
 
@@ -11,9 +11,9 @@ export interface AuthUser {
   readonly id: number;
   readonly username: string;
   readonly role: string;
-  readonly full_name: string;
-  readonly email: string;
-  readonly phone: string;
+  readonly full_name: string | null;
+  readonly email: string | null;
+  readonly phone: string | null;
   readonly profile_image: string | null;
   readonly is_active: boolean;
   readonly profile_required: boolean;
@@ -27,12 +27,10 @@ export interface AuthUser {
 }
 
 export interface LoginResponse {
-  readonly data: {
-    readonly token: string;
-    readonly token_type: string;
-    readonly abilities: string[];
-    readonly user: AuthUser;
-  };
+  readonly token: string;
+  readonly tokenType: string;
+  readonly abilities: string[];
+  readonly user: AuthUser;
 }
 
 export interface AuthSession {

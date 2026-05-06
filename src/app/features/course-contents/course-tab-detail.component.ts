@@ -222,7 +222,6 @@ import {
 
                 <div class="category-point-copy">
                   <h4>{{ category.title }}</h4>
-
                   @if (category.explanation) {
                     <p>{{ category.explanation }}</p>
                   }

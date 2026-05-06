@@ -5,6 +5,7 @@ export interface ApiEndpointsConfig {
   readonly studentBaseUrl: string;
   readonly teacherBaseUrl: string;
   readonly notificationsBaseUrl: string;
+  readonly notificationsHubUrl: string;
   readonly aiChat: {
     readonly ask: string;
   };
@@ -24,6 +25,7 @@ export interface ApiEndpointsConfig {
     readonly topicQuizSubmitById: string;
     readonly quizAttemptsChart: string;
     readonly questions: string;
+    readonly questionRepliesById: string;
   };
   readonly teacher: {
     readonly dashboard: string;
@@ -44,11 +46,12 @@ export interface ApiEndpointsConfig {
 
 export const appApiConfig: ApiEndpointsConfig = {
   aiChatBaseUrl: 'https://mahmoudengemam-studentplatform-rag.hf.space',
-  authBaseUrl: 'https://stood-caddy-stapling.ngrok-free.dev/api',
-  catalogBaseUrl: 'https://stood-caddy-stapling.ngrok-free.dev/api',
-  studentBaseUrl: 'https://stood-caddy-stapling.ngrok-free.dev/api',
-  teacherBaseUrl: 'https://stood-caddy-stapling.ngrok-free.dev/api',
-  notificationsBaseUrl: 'https://stood-caddy-stapling.ngrok-free.dev/api',
+  authBaseUrl: 'https://student-platform.runasp.net/api',
+  catalogBaseUrl: 'https://student-platform.runasp.net/api',
+  studentBaseUrl: 'https://student-platform.runasp.net/api',
+  teacherBaseUrl: 'https://student-platform.runasp.net/api',
+  notificationsBaseUrl: 'https://student-platform.runasp.net/api',
+  notificationsHubUrl: 'https://student-platform.runasp.net/hubs/notifications',
   aiChat: {
     ask: '/api/v1/ask'
   },
@@ -67,7 +70,8 @@ export const appApiConfig: ApiEndpointsConfig = {
     topicQuizReviewById: '/student/topics',
     topicQuizSubmitById: '/student/topics',
     quizAttemptsChart: '/student/quiz-attempts/chart',
-    questions: '/student/questions'
+    questions: '/student/questions',
+    questionRepliesById: '/student/questions'
   },
   teacher: {
     dashboard: '/teacher/dashboard',

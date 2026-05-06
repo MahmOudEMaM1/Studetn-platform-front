@@ -32,6 +32,10 @@ export class AppConfigService {
     return this.apiConfig.notificationsBaseUrl;
   }
 
+  get notificationsHubUrl(): string {
+    return this.apiConfig.notificationsHubUrl;
+  }
+
   get aiChatAskUrl(): string {
     return this.buildApiUrl(this.apiConfig.aiChatBaseUrl, this.apiConfig.aiChat.ask);
   }
@@ -82,6 +86,13 @@ export class AppConfigService {
 
   get studentQuestionsUrl(): string {
     return this.buildApiUrl(this.apiConfig.studentBaseUrl, this.apiConfig.student.questions);
+  }
+
+  studentQuestionRepliesUrl(questionId: string): string {
+    return this.buildApiUrl(
+      this.apiConfig.studentBaseUrl,
+      `${this.apiConfig.student.questionRepliesById}/${questionId}/replies`
+    );
   }
 
   studentTopicQuizReviewUrl(topicId: string): string {

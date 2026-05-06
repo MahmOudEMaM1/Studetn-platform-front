@@ -1,7 +1,13 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { catchError, EMPTY, finalize, forkJoin, interval, Subscription, switchMap, tap } from 'rxjs';
+import {
+  HubConnection,
+  HubConnectionBuilder,
+  HubConnectionState
+} from '@microsoft/signalr';
+import { catchError, EMPTY, finalize, forkJoin, tap } from 'rxjs';
 
 import { AuthSessionService } from './auth-session.service';
+import { AppConfigService } from './app-config.service';
 import { AppNotification } from '../../data-access/notifications/notifications.models';
 import { NotificationsApiService } from '../../data-access/notifications/notifications-api.service';
 
@@ -9,23 +15,25 @@ import { NotificationsApiService } from '../../data-access/notifications/notific
   providedIn: 'root'
 })
 export class NotificationsCenterService {
-  private static readonly POLLING_INTERVAL_MS = 10_000;
-
   private readonly authSession = inject(AuthSessionService);
+  private readonly appConfig = inject(AppConfigService);
   private readonly notificationsApi = inject(NotificationsApiService);
-  private pollingSubscription: Subscription | null = null;
+  private hubConnection: HubConnection | null = null;
+  private isStartingConnection = false;
 
   private readonly itemsWritable = signal<AppNotification[]>([]);
   private readonly unreadItemsWritable = signal<AppNotification[]>([]);
   private readonly isPanelOpenWritable = signal(false);
   private readonly isLoadingWritable = signal(false);
   private readonly isMarkingAllWritable = signal(false);
+  private readonly latestRealtimeNotificationWritable = signal<AppNotification | null>(null);
 
   readonly items = this.itemsWritable.asReadonly();
   readonly unreadItems = this.unreadItemsWritable.asReadonly();
   readonly isPanelOpen = this.isPanelOpenWritable.asReadonly();
   readonly isLoading = this.isLoadingWritable.asReadonly();
   readonly isMarkingAll = this.isMarkingAllWritable.asReadonly();
+  readonly latestRealtimeNotification = this.latestRealtimeNotificationWritable.asReadonly();
 
   refresh(): void {
     if (!this.authSession.isAuthenticated()) {
@@ -51,39 +59,50 @@ export class NotificationsCenterService {
       .subscribe();
   }
 
-  startPolling(): void {
-    if (this.pollingSubscription || !this.authSession.isAuthenticated()) {
+  startRealtime(): void {
+    if (
+      !this.authSession.isAuthenticated() ||
+      this.isStartingConnection ||
+      this.hubConnection?.state === HubConnectionState.Connected ||
+      this.hubConnection?.state === HubConnectionState.Connecting
+    ) {
       return;
     }
 
-    this.pollingSubscription = interval(NotificationsCenterService.POLLING_INTERVAL_MS)
-      .pipe(
-        switchMap(() => this.notificationsApi.getUnreadNotifications()),
-        tap((unreadItems) => {
-          this.unreadItemsWritable.set(unreadItems);
+    this.hubConnection = new HubConnectionBuilder()
+      .withUrl(this.appConfig.notificationsHubUrl, {
+        accessTokenFactory: () => this.authSession.currentSession()?.token ?? ''
+      })
+      .withAutomaticReconnect()
+      .build();
 
-          this.itemsWritable.update((items) => {
-            if (this.isPanelOpenWritable()) {
-              return items;
-            }
+    this.hubConnection.on('ReceiveNotification', (payload: unknown) => {
+      this.receiveNotification(this.notificationsApi.mapNotification(payload));
+    });
 
-            const unreadById = new Map(unreadItems.map((item) => [item.id, item]));
-            const nextItems = items.map((item) => unreadById.get(item.id) ?? { ...item, isRead: true });
-            const unseenItems = unreadItems.filter(
-              (unreadItem) => !nextItems.some((existingItem) => existingItem.id === unreadItem.id)
-            );
+    this.isStartingConnection = true;
 
-            return [...unseenItems, ...nextItems];
-          });
-        }),
-        catchError(() => EMPTY)
-      )
-      .subscribe();
+    void this.hubConnection
+      .start()
+      .then(() => this.refresh())
+      .catch(() => {
+        this.hubConnection = null;
+      })
+      .finally(() => {
+        this.isStartingConnection = false;
+      });
   }
 
-  stopPolling(): void {
-    this.pollingSubscription?.unsubscribe();
-    this.pollingSubscription = null;
+  stopRealtime(): void {
+    const connection = this.hubConnection;
+    this.hubConnection = null;
+    this.isStartingConnection = false;
+
+    connection?.off('ReceiveNotification');
+
+    if (connection?.state !== HubConnectionState.Disconnected) {
+      void connection?.stop();
+    }
   }
 
   togglePanel(): void {
@@ -148,5 +167,37 @@ export class NotificationsCenterService {
         finalize(() => this.isMarkingAllWritable.set(false))
       )
       .subscribe();
+  }
+
+  private receiveNotification(notification: AppNotification): void {
+    this.latestRealtimeNotificationWritable.set(notification);
+
+    this.itemsWritable.update((items) => {
+      const existingIndex = items.findIndex((item) => item.id === notification.id);
+
+      if (existingIndex === -1) {
+        return [notification, ...items];
+      }
+
+      const nextItems = [...items];
+      nextItems[existingIndex] = notification;
+
+      return nextItems;
+    });
+
+    if (!notification.isRead) {
+      this.unreadItemsWritable.update((items) => {
+        const existingIndex = items.findIndex((item) => item.id === notification.id);
+
+        if (existingIndex === -1) {
+          return [notification, ...items];
+        }
+
+        const nextItems = [...items];
+        nextItems[existingIndex] = notification;
+
+        return nextItems;
+      });
+    }
   }
 }

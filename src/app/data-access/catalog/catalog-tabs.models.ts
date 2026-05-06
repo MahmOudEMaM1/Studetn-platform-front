@@ -172,8 +172,8 @@ export interface CatalogQuizQuestion {
 }
 
 export interface CatalogQuizReviewAnswerPayload {
-  readonly question_id: number | string;
-  readonly selected_answer: string;
+  readonly questionId: number | string;
+  readonly selectedAnswer: string;
 }
 
 export interface CatalogQuizReviewRequest {

@@ -2,7 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute } from '@angular/router';
-import { EMPTY, catchError, map, of, switchMap } from 'rxjs';
+import { map, of, switchMap } from 'rxjs';
 
 import { appRouteLinks } from '../../core/routing/app-route-paths';
 import { CatalogTabsApiService } from '../../data-access/catalog/catalog-tabs-api.service';
@@ -146,15 +146,13 @@ export class QuizPageComponent {
 
     this.catalogTabsApi
       .submitTopicQuiz(this.topicId(), payload)
-      .pipe(catchError(() => EMPTY))
-      .subscribe();
-
-    this.catalogTabsApi
-      .reviewTopicQuiz(this.topicId(), payload)
-      .pipe(takeUntilDestroyed(this.destroyRef))
+      .pipe(
+        switchMap(() => this.catalogTabsApi.reviewTopicQuiz(this.topicId(), payload)),
+        takeUntilDestroyed(this.destroyRef)
+      )
       .subscribe({
         next: (result) => {
-          this.reviewResult.set(result);
+          this.reviewResult.set(this.attachReviewChoices(result));
           this.submitted.set(true);
           this.isReviewModalOpen.set(true);
           this.isSubmittingReview.set(false);
@@ -221,7 +219,7 @@ export class QuizPageComponent {
     return this.isReviewChoiceSelected(answer, choice) && !this.isReviewChoiceCorrect(answer, choice);
   }
 
-  private buildAnswerPayload(): { question_id: number | string; selected_answer: string }[] {
+  private buildAnswerPayload(): { questionId: number | string; selectedAnswer: string }[] {
     return this.questions()
       .map((question) => {
         const selectedAnswer = this.selectedAnswers()[question.id];
@@ -231,13 +229,34 @@ export class QuizPageComponent {
         }
 
         return {
-          question_id: /^\d+$/.test(question.id) ? Number(question.id) : question.id,
-          selected_answer: selectedAnswer
+          questionId: /^\d+$/.test(question.id) ? Number(question.id) : question.id,
+          selectedAnswer
         };
       })
-      .filter((answer): answer is { question_id: number | string; selected_answer: string } =>
+      .filter((answer): answer is { questionId: number | string; selectedAnswer: string } =>
         answer !== null
       );
+  }
+
+  private attachReviewChoices(result: CatalogQuizReviewResult): CatalogQuizReviewResult {
+    const questionsById = new Map(this.questions().map((question) => [question.id, question]));
+
+    return {
+      ...result,
+      topicName: this.topicTitle(),
+      answers: result.answers.map((answer) => {
+        const question = questionsById.get(answer.questionId);
+        const selectedChoice = question?.choices.find((choice) => choice.key === answer.selectedAnswer);
+        const correctChoice = question?.choices.find((choice) => choice.key === answer.correctAnswer);
+
+        return {
+          ...answer,
+          choices: answer.choices.length > 0 ? answer.choices : (question?.choices ?? []),
+          selectedAnswerText: answer.selectedAnswerText ?? selectedChoice?.text ?? null,
+          correctAnswerText: answer.correctAnswerText ?? correctChoice?.text ?? null
+        };
+      })
+    };
   }
 
   private extractErrorMessage(error: HttpErrorResponse): string {

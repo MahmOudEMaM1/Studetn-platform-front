@@ -61,7 +61,7 @@ export class LoginPageComponent {
       .login({
         username: this.username().trim(),
         password: this.password(),
-        device_name: 'postman-admin',
+        deviceName: 'web-browser',
         role: this.role()
       })
       .pipe(takeUntilDestroyed(this.destroyRef))

@@ -20,7 +20,7 @@
             <div>
               @if (isStudentView()) {
                 <p class="eyebrow">New Question</p>
-                <h2>Ask your teacher</h2>
+                <h2>Ask or help classmates</h2>
               } @else {
                 <p class="eyebrow">Teacher View</p>
                 <h2>Support the class</h2>
@@ -162,7 +162,7 @@
             <div class="comments-head">
               <div>
                 <p class="eyebrow">Replies</p>
-                <h3>{{ question.replies.length }} teacher replies</h3>
+                <h3>{{ question.replies.length }} community replies</h3>
               </div>
             </div>
 
@@ -172,27 +172,26 @@
                   <div class="comment-top">
                     <div class="comment-author">
                       <span class="author-avatar author-avatar-small">
-                        {{ reply.teacherName.charAt(0) }}
+                        {{ reply.authorName.charAt(0) }}
                       </span>
                       <div>
-                        <strong>{{ reply.teacherName }}</strong>
-                        <p>Teacher . {{ reply.createdAt }}</p>
+                        <strong>{{ reply.authorName }}</strong>
+                        <p>{{ reply.authorRole === 'teacher' ? 'Teacher' : reply.authorRole === 'student' ? 'Student' : 'Community' }} . {{ reply.createdAt }}</p>
                       </div>
                     </div>
 
-                    <span class="helpful-badge">Teacher reply</span>
                   </div>
 
                   <p class="comment-body">{{ reply.reply }}</p>
                 </article>
               } @empty {
                 <article class="empty-card">
-                  <p>No replies yet. {{ isTeacherView() ? 'You can answer this question now.' : 'A teacher reply will appear here.' }}</p>
+                  <p>No replies yet. You can answer this question now.</p>
                 </article>
               }
             </div>
 
-            @if (isTeacherView()) {
+            @if (canReply()) {
               <div class="reply-box">
                 <label class="field">
                   <span>Add your reply</span>
@@ -200,7 +199,7 @@
                     [ngModel]="replyDraft()"
                     (ngModelChange)="replyDraft.set($event)"
                     rows="5"
-                    placeholder="Share the explanation, example, or shortcut that will help the student."
+                    placeholder="Share the explanation, example, or shortcut that will help the discussion."
                   ></textarea>
                 </label>
 

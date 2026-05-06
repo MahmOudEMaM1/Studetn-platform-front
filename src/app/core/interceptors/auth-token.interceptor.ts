@@ -15,10 +15,9 @@ export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
     request.url.startsWith(appConfig.teacherBaseUrl) ||
     request.url.startsWith(appConfig.notificationsBaseUrl);
 
-  const shouldSendNgrokBypassHeader =
-    request.url.includes('ngrok-free.dev') || request.url.startsWith('/backend-api');
+  const isBackendProxyRequest = request.url.startsWith('/backend-api');
 
-  if (!authorizationHeader && !shouldSendNgrokBypassHeader) {
+  if (!authorizationHeader) {
     console.log('[auth-token-interceptor] forwarding request without extra headers', {
       url: request.url,
       method: request.method
@@ -29,12 +28,8 @@ export const authTokenInterceptor: HttpInterceptorFn = (request, next) => {
 
   const setHeaders: Record<string, string> = {};
 
-  if (authorizationHeader && shouldAttachToken) {
+  if (authorizationHeader && (shouldAttachToken || isBackendProxyRequest)) {
     setHeaders['Authorization'] = authorizationHeader;
-  }
-
-  if (shouldSendNgrokBypassHeader) {
-    setHeaders['ngrok-skip-browser-warning'] = 'true';
   }
 
   console.log('[auth-token-interceptor] attaching headers', {

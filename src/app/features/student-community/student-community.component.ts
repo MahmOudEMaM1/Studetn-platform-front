@@ -1,10 +1,11 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute } from '@angular/router';
 
 import { AuthSessionService } from '../../core/services/auth-session.service';
+import { NotificationsCenterService } from '../../core/services/notifications-center.service';
 import { CommunityApiService } from '../../data-access/community/community-api.service';
 import { CommunityQuestion, CommunityReply } from '../../data-access/community/community.models';
 import { LoginRole } from '../../data-access/auth/auth.models';
@@ -22,8 +23,10 @@ type CommunityRole = Extract<LoginRole, 'student' | 'teacher'>;
 export class StudentCommunityComponent {
   private readonly destroyRef = inject(DestroyRef);
   private readonly authSession = inject(AuthSessionService);
+  private readonly notificationsCenter = inject(NotificationsCenterService);
   private readonly communityApi = inject(CommunityApiService);
   private readonly route = inject(ActivatedRoute);
+  private lastHandledRealtimeNotificationId: string | null = null;
 
   protected readonly activeUser = this.authSession.currentUser;
   protected readonly activeUserName = computed(
@@ -34,6 +37,7 @@ export class StudentCommunityComponent {
   );
   protected readonly isStudentView = computed(() => this.activeRole() === 'student');
   protected readonly isTeacherView = computed(() => this.activeRole() === 'teacher');
+  protected readonly canReply = computed(() => this.isStudentView() || this.isTeacherView());
 
   protected readonly filters: { key: ThreadFilter; label: string }[] = [
     { key: 'all', label: 'All questions' },
@@ -102,6 +106,26 @@ export class StudentCommunityComponent {
   );
 
   constructor() {
+    effect(() => {
+      const notification = this.notificationsCenter.latestRealtimeNotification();
+
+      if (
+        !notification ||
+        notification.id === this.lastHandledRealtimeNotificationId ||
+        !this.shouldRefreshForNotification(notification)
+      ) {
+        return;
+      }
+
+      this.lastHandledRealtimeNotificationId = notification.id;
+
+      if (notification.questionId !== null) {
+        this.selectedQuestionId.set(notification.questionId);
+      }
+
+      this.loadQuestions();
+    });
+
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const rawQuestionId = params.get('questionId');
       const questionId = rawQuestionId ? Number(rawQuestionId) : null;
@@ -159,14 +183,14 @@ export class StudentCommunityComponent {
     const reply = this.replyDraft().trim();
     const selectedQuestion = this.selectedQuestion();
 
-    if (!this.isTeacherView() || !reply || !selectedQuestion || this.isSubmittingReply()) {
+    if (!this.canReply() || !reply || !selectedQuestion || this.isSubmittingReply()) {
       return;
     }
 
     this.isSubmittingReply.set(true);
 
     this.communityApi
-      .createTeacherReply(selectedQuestion.id, reply)
+      .createReply(this.activeRole(), selectedQuestion.id, reply)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe({
         next: (createdReply) => {
@@ -215,6 +239,15 @@ export class StudentCommunityComponent {
           this.isLoading.set(false);
         }
       });
+  }
+
+  private shouldRefreshForNotification(notification: { readonly type: string }): boolean {
+    const role = this.activeRole();
+
+    return (
+      (role === 'student' && notification.type === 'student_question_replied') ||
+      (role === 'teacher' && notification.type === 'student_question_created')
+    );
   }
 
   private extractErrorMessage(error: HttpErrorResponse, fallbackMessage: string): string {

@@ -84,10 +84,10 @@ export class AuthSessionService {
 
   startSession(response: LoginResponse, rememberUser = true): void {
     const nextSession: AuthSession = {
-      token: response.data.token,
-      tokenType: response.data.token_type,
-      abilities: response.data.abilities,
-      user: response.data.user
+      token: response.token,
+      tokenType: response.tokenType,
+      abilities: response.abilities,
+      user: response.user
     };
 
     this.session.set(nextSession);

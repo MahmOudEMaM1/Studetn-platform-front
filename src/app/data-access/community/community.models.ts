@@ -1,3 +1,5 @@
+import { LoginRole } from '../auth/auth.models';
+
 export interface CommunityStudentApiRef {
   readonly id?: number | null;
   readonly full_name?: string | null;
@@ -11,6 +13,12 @@ export interface CommunityTeacherApiRef {
 export interface CommunityReplyApiItem {
   readonly id?: number | null;
   readonly reply?: string | null;
+  readonly authorName?: string | null;
+  readonly author_name?: string | null;
+  readonly authorRole?: string | null;
+  readonly author_role?: string | null;
+  readonly teacherName?: string | null;
+  readonly teacher_name?: string | null;
   readonly teacher?: CommunityTeacherApiRef | null;
   readonly created_at?: string | null;
 }
@@ -36,19 +44,20 @@ export interface CreateStudentQuestionResponse {
   readonly data?: CommunityQuestionApiItem | null;
 }
 
-export interface CreateTeacherReplyRequest {
+export interface CreateReplyRequest {
   readonly reply: string;
 }
 
-export interface CreateTeacherReplyResponse {
+export interface CreateReplyResponse {
   readonly data?: CommunityReplyApiItem | null;
 }
 
 export interface CommunityReply {
   readonly id: number;
   readonly reply: string;
-  readonly teacherId: number;
-  readonly teacherName: string;
+  readonly authorId: number;
+  readonly authorName: string;
+  readonly authorRole: LoginRole | 'community';
   readonly createdAt: string;
 }
 

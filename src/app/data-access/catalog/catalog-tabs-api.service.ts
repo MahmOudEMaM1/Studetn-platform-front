@@ -5,35 +5,28 @@ import { map, Observable } from 'rxjs';
 import { AppConfigService } from '../../core/services/app-config.service';
 import { SKIP_APP_LOADING } from '../../core/interceptors/app-loading.interceptor';
 import {
-  CatalogTab,
-  CatalogTabDetails,
-  CatalogTabDetailsApiItem,
-  CatalogTabDetailsResponse,
-  CatalogTabApiItem,
   CatalogQuizChoice,
   CatalogQuizChoiceApiItem,
   CatalogQuizQuestion,
-  CatalogQuizQuestionApiItem,
   CatalogQuizReviewAnswer,
   CatalogQuizReviewAnswerApiItem,
   CatalogQuizReviewChoice,
   CatalogQuizReviewChoiceApiItem,
   CatalogQuizReviewRequest,
   CatalogQuizReviewResult,
-  CatalogQuizReviewResponse,
-  CatalogQuizSubmitResponse,
   CatalogQuizSubmitResult,
+  CatalogTab,
+  CatalogTabApiItem,
+  CatalogTabDetails,
+  CatalogTabDetailsApiItem,
+  CatalogTopic,
+  CatalogTopicApiItem,
   CatalogTopicCategory,
   CatalogTopicCategoryApiItem,
   CatalogTopicDetails,
   CatalogTopicDetailsApiItem,
-  CatalogTopicDetailsResponse,
   CatalogTopicTerm,
-  CatalogTopicTermApiItem,
-  CatalogTopic,
-  CatalogTopicApiItem,
-  CatalogTabsResponse,
-  CatalogTopicQuizResponse
+  CatalogTopicTermApiItem
 } from './catalog-tabs.models';
 
 @Injectable({
@@ -45,28 +38,28 @@ export class CatalogTabsApiService {
 
   getTabs(): Observable<CatalogTab[]> {
     return this.http
-      .get<CatalogTabsResponse | CatalogTabApiItem[]>(this.appConfig.catalogTabsUrl)
-      .pipe(map((response) => this.extractTabs(response).map((item, index) => this.mapTab(item, index))));
+      .get<unknown>(this.appConfig.catalogTabsUrl)
+      .pipe(map((response) => this.extractArray(response).map((item, index) => this.mapTab(item, index))));
   }
 
   getTabById(tabId: string): Observable<CatalogTabDetails> {
     return this.http
-      .get<CatalogTabDetailsResponse>(this.appConfig.catalogTabByIdUrl(tabId))
-      .pipe(map((response) => this.mapTabDetails(response.data, tabId)));
+      .get<unknown>(this.appConfig.catalogTabByIdUrl(tabId))
+      .pipe(map((response) => this.mapTabDetails(this.unwrapData(response), tabId)));
   }
 
   getTopicById(topicId: string): Observable<CatalogTopicDetails> {
     return this.http
-      .get<CatalogTopicDetailsResponse>(this.appConfig.catalogTopicByIdUrl(topicId))
-      .pipe(map((response) => this.mapTopicDetails(response.data, topicId)));
+      .get<unknown>(this.appConfig.catalogTopicByIdUrl(topicId))
+      .pipe(map((response) => this.mapTopicDetails(this.unwrapData(response), topicId)));
   }
 
   getTopicQuizById(topicId: string): Observable<CatalogQuizQuestion[]> {
     return this.http
-      .get<CatalogTopicQuizResponse>(this.appConfig.catalogTopicQuizByIdUrl(topicId))
+      .get<unknown>(this.appConfig.catalogTopicQuizByIdUrl(topicId))
       .pipe(
         map((response) =>
-          (response.data ?? [])
+          this.extractArray(response)
             .map((question, index) => this.mapQuizQuestion(question, topicId, index))
             .sort((firstQuestion, secondQuestion) => firstQuestion.sortOrder - secondQuestion.sortOrder)
         )
@@ -78,8 +71,8 @@ export class CatalogTabsApiService {
     payload: CatalogQuizReviewRequest
   ): Observable<CatalogQuizReviewResult> {
     return this.http
-      .post<CatalogQuizReviewResponse>(this.appConfig.studentTopicQuizReviewUrl(topicId), payload)
-      .pipe(map((response) => this.mapQuizReviewResult(response.data, topicId)));
+      .post<unknown>(this.appConfig.studentTopicQuizReviewUrl(topicId), payload)
+      .pipe(map((response) => this.mapQuizReviewResult(this.unwrapData(response), topicId)));
   }
 
   submitTopicQuiz(
@@ -87,249 +80,296 @@ export class CatalogTabsApiService {
     payload: CatalogQuizReviewRequest
   ): Observable<CatalogQuizSubmitResult> {
     return this.http
-      .post<CatalogQuizSubmitResponse>(this.appConfig.studentTopicQuizSubmitUrl(topicId), payload, {
+      .post<unknown>(this.appConfig.studentTopicQuizSubmitUrl(topicId), payload, {
         context: new HttpContext().set(SKIP_APP_LOADING, true)
       })
-      .pipe(map((response) => this.mapQuizSubmitResult(response, topicId)));
+      .pipe(map((response) => this.mapQuizSubmitResult(this.unwrapData(response), topicId)));
   }
 
-  private extractTabs(
-    response: CatalogTabsResponse | CatalogTabApiItem[]
-  ): CatalogTabApiItem[] {
-    if (Array.isArray(response)) {
-      return response;
-    }
-
-    if (Array.isArray(response.tabs)) {
-      return response.tabs;
-    }
-
-    if (Array.isArray(response.items)) {
-      return response.items;
-    }
-
-    if (Array.isArray(response.data)) {
-      return response.data;
-    }
-
-    if (response.data && 'tabs' in response.data && Array.isArray(response.data.tabs)) {
-      return response.data.tabs;
-    }
-
-    return [];
-  }
-
-  private mapTab(item: CatalogTabApiItem, index: number): CatalogTab {
-    const title = this.pickFirstString(item.title, item.name, item.label, `Tab ${index + 1}`);
+  private mapTab(item: unknown, index: number): CatalogTab {
+    const title = this.pickFirstString(
+      this.readString(item, 'title'),
+      this.readString(item, 'name'),
+      this.readString(item, 'label'),
+      `Tab ${index + 1}`
+    );
     const subtitle = this.pickFirstString(
-      item.subtitle,
-      item.description,
-      item.summary,
+      this.readString(item, 'subtitle'),
+      this.readString(item, 'description'),
+      this.readString(item, 'summary'),
       'Course tab'
     );
-    const badge = this.normalizeBadge(item.badge ?? item.status ?? null);
+    const badge = this.normalizeBadge(
+      this.pickFirstString(this.readString(item, 'badge'), this.readString(item, 'status'), null)
+    );
 
     return {
-      id: String(item.id ?? index + 1),
+      id: String(this.readValue(item, 'id') ?? index + 1),
       title,
       subtitle,
       imageUrl: this.pickFirstString(
-        item.image_url,
-        item.image,
-        item.thumbnail,
-        item.cover,
+        this.readString(item, 'imageUrl', 'image_url'),
+        this.readString(item, 'image'),
+        this.readString(item, 'thumbnail'),
+        this.readString(item, 'cover'),
         null
       ),
       badge,
-      tags: this.extractTags(item.tags ?? item.categories)
+      tags: this.extractTags(this.readValue(item, 'tags') ?? this.readValue(item, 'categories'))
     };
   }
 
-  private mapTabDetails(
-    item: CatalogTabDetailsApiItem | null | undefined,
-    fallbackTabId: string
-  ): CatalogTabDetails {
-    const topics = (item?.topics ?? [])
+  private mapTabDetails(item: unknown, fallbackTabId: string): CatalogTabDetails {
+    const topics = this.readArray(item, 'topics')
       .map((topic, index) => this.mapTopic(topic, fallbackTabId, index))
       .sort((firstTopic, secondTopic) => firstTopic.sortOrder - secondTopic.sortOrder);
 
     return {
-      id: String(item?.id ?? fallbackTabId),
-      title: this.pickFirstString(item?.name, `Tab ${fallbackTabId}`),
-      sortOrder: item?.sort_order ?? 0,
-      topicsCount: item?.topics_count ?? topics.length,
+      id: String(this.readValue(item, 'id') ?? fallbackTabId),
+      title: this.pickFirstString(this.readString(item, 'name'), `Tab ${fallbackTabId}`),
+      sortOrder: this.readNumber(item, 'sortOrder', 'sort_order') ?? 0,
+      topicsCount: this.readNumber(item, 'topicsCount', 'topics_count') ?? topics.length,
       topics
     };
   }
 
-  private mapTopic(
-    item: CatalogTopicApiItem,
-    fallbackTabId: string,
-    index: number
-  ): CatalogTopic {
+  private mapTopic(item: unknown, fallbackTabId: string, index: number): CatalogTopic {
     return {
-      id: String(item.id ?? index + 1),
-      tabId: String(item.tab_id ?? fallbackTabId),
-      title: this.pickFirstString(item.name, `Topic ${index + 1}`),
-      sortOrder: item.sort_order ?? index,
-      termsCount: item.terms_count ?? 0,
-      questionsCount: item.questions_count ?? 0
+      id: String(this.readValue(item, 'id') ?? index + 1),
+      tabId: String(this.readValue(item, 'tabId', 'tab_id') ?? fallbackTabId),
+      title: this.pickFirstString(this.readString(item, 'name'), `Topic ${index + 1}`),
+      sortOrder: this.readNumber(item, 'sortOrder', 'sort_order') ?? index,
+      termsCount: this.readNumber(item, 'termsCount', 'terms_count') ?? 0,
+      questionsCount: this.readNumber(item, 'questionsCount', 'questions_count') ?? 0
     };
   }
 
-  private mapTopicDetails(
-    item: CatalogTopicDetailsApiItem | null | undefined,
-    fallbackTopicId: string
-  ): CatalogTopicDetails {
-    const terms = (item?.terms ?? [])
+  private mapTopicDetails(item: unknown, fallbackTopicId: string): CatalogTopicDetails {
+    const terms = this.readArray(item, 'terms')
       .map((term, index) => this.mapTerm(term, fallbackTopicId, index))
       .sort((firstTerm, secondTerm) => firstTerm.sortOrder - secondTerm.sortOrder);
+    const tab = this.readValue(item, 'tab');
 
     return {
-      id: String(item?.id ?? fallbackTopicId),
-      tabId: String(item?.tab_id ?? item?.tab?.id ?? ''),
-      title: this.pickFirstString(item?.name, `Topic ${fallbackTopicId}`),
-      sortOrder: item?.sort_order ?? 0,
-      termsCount: item?.terms_count ?? terms.length,
-      questionsCount: item?.questions_count ?? 0,
-      tabTitle: this.pickFirstString(item?.tab?.name, ''),
+      id: String(this.readValue(item, 'id') ?? fallbackTopicId),
+      tabId: String(this.readValue(item, 'tabId', 'tab_id') ?? this.readValue(tab, 'id') ?? ''),
+      title: this.pickFirstString(this.readString(item, 'name'), `Topic ${fallbackTopicId}`),
+      sortOrder: this.readNumber(item, 'sortOrder', 'sort_order') ?? 0,
+      termsCount: this.readNumber(item, 'termsCount', 'terms_count') ?? terms.length,
+      questionsCount: this.readNumber(item, 'questionsCount', 'questions_count') ?? 0,
+      tabTitle: this.pickFirstString(this.readString(tab, 'name'), ''),
       terms
     };
   }
 
-  private mapTerm(
-    item: CatalogTopicTermApiItem,
-    fallbackTopicId: string,
-    index: number
-  ): CatalogTopicTerm {
-    const termId = String(item.id ?? index + 1);
+  private mapTerm(item: unknown, fallbackTopicId: string, index: number): CatalogTopicTerm {
+    const termId = String(this.readValue(item, 'id') ?? index + 1);
 
     return {
       id: termId,
-      topicId: String(item.topic_id ?? fallbackTopicId),
-      title: this.pickFirstString(item.name, `Term ${index + 1}`),
-      sortOrder: item.sort_order ?? index,
-      explanation: this.pickFirstString(item.correct_explanation, 'Explanation will be added soon.'),
-      imageUrls: this.extractImageUrls(item.images),
-      categories: (item.categories ?? [])
+      topicId: String(this.readValue(item, 'topicId', 'topic_id') ?? fallbackTopicId),
+      title: this.pickFirstString(this.readString(item, 'name'), `Term ${index + 1}`),
+      sortOrder: this.readNumber(item, 'sortOrder', 'sort_order') ?? index,
+      explanation: this.pickFirstString(
+        this.readString(item, 'correctExplanation', 'correct_explanation'),
+        'Explanation will be added soon.'
+      ),
+      imageUrls: this.extractImageUrls(this.readArray(item, 'images')),
+      categories: this.readArray(item, 'categories')
         .map((category, categoryIndex) => this.mapCategory(category, termId, categoryIndex))
         .sort((firstCategory, secondCategory) => firstCategory.sortOrder - secondCategory.sortOrder)
     };
   }
 
-  private mapCategory(
-    item: CatalogTopicCategoryApiItem,
-    fallbackTermId: string,
-    index: number
-  ): CatalogTopicCategory {
-    const children = (item.children ?? [])
+  private mapCategory(item: unknown, fallbackTermId: string, index: number): CatalogTopicCategory {
+    const children = this.readArray(item, 'children')
       .map((child, childIndex) => this.mapCategory(child, fallbackTermId, childIndex))
       .sort((firstChild, secondChild) => firstChild.sortOrder - secondChild.sortOrder);
 
     return {
-      id: String(item.id ?? index + 1),
-      termId: String(item.term_id ?? fallbackTermId),
-      parentId:
-        item.parent_id === null || item.parent_id === undefined ? null : String(item.parent_id),
-      title: this.pickFirstString(item.name, `Category ${index + 1}`),
-      explanation: this.pickFirstString(item.explanation, ''),
-      sortOrder: item.sort_order ?? index,
+      id: String(this.readValue(item, 'id') ?? index + 1),
+      termId: String(this.readValue(item, 'termId', 'term_id') ?? fallbackTermId),
+      parentId: this.readValue(item, 'parentId', 'parent_id') == null ? null : String(this.readValue(item, 'parentId', 'parent_id')),
+      title: this.pickFirstString(this.readString(item, 'name'), `Category ${index + 1}`),
+      explanation: this.pickFirstString(this.readString(item, 'explanation'), ''),
+      sortOrder: this.readNumber(item, 'sortOrder', 'sort_order') ?? index,
       children
     };
   }
 
-  private mapQuizQuestion(
-    item: CatalogQuizQuestionApiItem,
-    fallbackTopicId: string,
-    index: number
-  ): CatalogQuizQuestion {
+  private mapQuizQuestion(item: unknown, fallbackTopicId: string, index: number): CatalogQuizQuestion {
+    const choices = this.extractQuizChoices(item);
+
     return {
-      id: String(item.id ?? index + 1),
-      topicId: String(item.topic_id ?? fallbackTopicId),
-      questionText: this.pickFirstString(item.question_text, `Question ${index + 1}`),
-      sortOrder: item.sort_order ?? index,
-      choices: (item.choices ?? []).map((choice, choiceIndex) =>
-        this.mapQuizChoice(choice, choiceIndex)
-      )
+      id: String(this.readValue(item, 'id') ?? index + 1),
+      topicId: String(this.readValue(item, 'topicId', 'topic_id') ?? fallbackTopicId),
+      questionText: this.pickFirstString(
+        this.readString(item, 'questionText', 'question_text'),
+        `Question ${index + 1}`
+      ),
+      sortOrder: this.readNumber(item, 'sortOrder', 'sort_order') ?? index,
+      choices
     };
   }
 
-  private mapQuizChoice(item: CatalogQuizChoiceApiItem, index: number): CatalogQuizChoice {
+  private extractQuizChoices(item: unknown): CatalogQuizChoice[] {
+    const oldChoices = this.readArray(item, 'choices');
+
+    if (oldChoices.length > 0) {
+      return oldChoices.map((choice, choiceIndex) => this.mapQuizChoice(choice, choiceIndex));
+    }
+
+    const choice = this.readValue(item, 'choice');
+    const entries: Array<[string, string | null]> = [
+      ['A', this.readString(choice, 'choiceA', 'choice_a')],
+      ['B', this.readString(choice, 'choiceB', 'choice_b')],
+      ['C', this.readString(choice, 'choiceC', 'choice_c')],
+      ['D', this.readString(choice, 'choiceD', 'choice_d')]
+    ];
+
+    return entries
+      .filter((entry): entry is [string, string] => typeof entry[1] === 'string' && entry[1].trim().length > 0)
+      .map(([key, text]) => ({ key, text }));
+  }
+
+  private mapQuizChoice(item: unknown, index: number): CatalogQuizChoice {
     const fallbackKey = String.fromCharCode(65 + index);
 
     return {
-      key: this.pickFirstString(item.key, fallbackKey),
-      text: this.pickFirstString(item.text, `Choice ${fallbackKey}`)
+      key: this.pickFirstString(this.readString(item, 'key'), fallbackKey),
+      text: this.pickFirstString(this.readString(item, 'text'), `Choice ${fallbackKey}`)
     };
   }
 
-  private mapQuizReviewResult(
-    item: CatalogQuizReviewResponse['data'],
-    fallbackTopicId: string
-  ): CatalogQuizReviewResult {
-    const answers = (item?.answers ?? []).map((answer, index) =>
+  private mapQuizReviewResult(item: unknown, fallbackTopicId: string): CatalogQuizReviewResult {
+    const answers = this.readArray(item, 'answers').map((answer, index) =>
       this.mapQuizReviewAnswer(answer, index)
     );
 
     return {
-      topicId: String(item?.topic_id ?? fallbackTopicId),
-      topicName: this.pickFirstString(item?.topic_name, 'Quiz review'),
+      topicId: String(this.readValue(item, 'topicId', 'topic_id') ?? fallbackTopicId),
+      topicName: this.pickFirstString(this.readString(item, 'topicName', 'topic_name'), 'Quiz review'),
       answers
     };
   }
 
-  private mapQuizReviewAnswer(
-    item: CatalogQuizReviewAnswerApiItem,
-    index: number
-  ): CatalogQuizReviewAnswer {
+  private mapQuizReviewAnswer(item: unknown, index: number): CatalogQuizReviewAnswer {
     return {
-      questionId: String(item.question_id ?? index + 1),
-      questionText: this.pickFirstString(item.question_text, `Question ${index + 1}`),
-      choices: (item.choices ?? []).map((choice, choiceIndex) =>
+      questionId: String(this.readValue(item, 'questionId', 'question_id') ?? index + 1),
+      questionText: this.pickFirstString(
+        this.readString(item, 'questionText', 'question_text'),
+        `Question ${index + 1}`
+      ),
+      choices: this.readArray(item, 'choices').map((choice, choiceIndex) =>
         this.mapQuizReviewChoice(choice, choiceIndex)
       ),
-      selectedAnswer: this.pickFirstString(item.selected_answer, null),
-      selectedAnswerText: this.pickFirstString(item.selected_answer_text, null),
-      correctAnswer: this.pickFirstString(item.correct_answer, null),
-      correctAnswerText: this.pickFirstString(item.correct_answer_text, null),
-      reference: this.pickFirstString(item.reference, null),
-      isCorrect: item.is_correct === true
+      selectedAnswer: this.pickFirstString(this.readString(item, 'selectedAnswer', 'selected_answer'), null),
+      selectedAnswerText: this.pickFirstString(this.readString(item, 'selectedAnswerText', 'selected_answer_text'), null),
+      correctAnswer: this.pickFirstString(this.readString(item, 'correctAnswer', 'correct_answer'), null),
+      correctAnswerText: this.pickFirstString(this.readString(item, 'correctAnswerText', 'correct_answer_text'), null),
+      reference: this.pickFirstString(this.readString(item, 'reference'), null),
+      isCorrect: this.readValue(item, 'isCorrect', 'is_correct') === true
     };
   }
 
-  private mapQuizReviewChoice(
-    item: CatalogQuizReviewChoiceApiItem,
-    index: number
-  ): CatalogQuizReviewChoice {
+  private mapQuizReviewChoice(item: unknown, index: number): CatalogQuizReviewChoice {
     const fallbackKey = String.fromCharCode(65 + index);
 
     return {
-      key: this.pickFirstString(item.key, fallbackKey),
-      text: this.pickFirstString(item.text, '')
+      key: this.pickFirstString(this.readString(item, 'key'), fallbackKey),
+      text: this.pickFirstString(this.readString(item, 'text'), '')
     };
   }
 
-  private mapQuizSubmitResult(
-    response: CatalogQuizSubmitResponse,
-    fallbackTopicId: string
-  ): CatalogQuizSubmitResult {
-    const data = response.data;
-    const scoreValue = data?.score_percentage;
+  private mapQuizSubmitResult(item: unknown, fallbackTopicId: string): CatalogQuizSubmitResult {
+    const scoreValue = this.readValue(item, 'scorePercentage', 'score_percentage');
 
     return {
-      id: String(data?.id ?? ''),
-      topicId: String(data?.topic?.id ?? fallbackTopicId),
-      topicName: this.pickFirstString(data?.topic?.name, 'Topic quiz'),
-      totalQuestions: data?.total_questions ?? 0,
-      correctAnswersCount: data?.correct_answers_count ?? 0,
-      wrongAnswersCount: data?.wrong_answers_count ?? 0,
-      scorePercentage:
-        typeof scoreValue === 'string' ? Number.parseFloat(scoreValue) || 0 : (scoreValue ?? 0),
-      passed: data?.passed === true,
-      startedAt: this.pickFirstString(data?.started_at, null),
-      submittedAt: this.pickFirstString(data?.submitted_at, null),
-      message: this.pickFirstString(response.message, 'Quiz submitted successfully.')
+      id: String(this.readValue(item, 'id') ?? ''),
+      topicId: String(this.readValue(item, 'topicId', 'topic_id') ?? this.readValue(this.readValue(item, 'topic'), 'id') ?? fallbackTopicId),
+      topicName: this.pickFirstString(
+        this.readString(item, 'topicName', 'topic_name'),
+        this.readString(this.readValue(item, 'topic'), 'name'),
+        'Topic quiz'
+      ),
+      totalQuestions: this.readNumber(item, 'totalQuestions', 'total_questions') ?? 0,
+      correctAnswersCount: this.readNumber(item, 'correctAnswersCount', 'correct_answers_count') ?? 0,
+      wrongAnswersCount: this.readNumber(item, 'wrongAnswersCount', 'wrong_answers_count') ?? 0,
+      scorePercentage: typeof scoreValue === 'string' ? Number.parseFloat(scoreValue) || 0 : (this.readNumber(item, 'scorePercentage', 'score_percentage') ?? 0),
+      passed: this.readValue(item, 'passed') === true,
+      startedAt: this.pickFirstString(this.readString(item, 'startedAt', 'started_at'), null),
+      submittedAt: this.pickFirstString(this.readString(item, 'submittedAt', 'submitted_at'), null),
+      message: 'Quiz submitted successfully.'
     };
+  }
+
+  private extractArray(response: unknown): unknown[] {
+    const unwrapped = this.unwrapData(response);
+
+    if (Array.isArray(unwrapped)) {
+      return unwrapped;
+    }
+
+    return this.readArray(unwrapped, 'tabs', 'items');
+  }
+
+  private unwrapData(response: unknown): unknown {
+    const record = this.asRecord(response);
+
+    return record && record['data'] !== undefined && record['data'] !== null ? record['data'] : response;
+  }
+
+  private readValue(value: unknown, ...keys: string[]): unknown {
+    const record = this.asRecord(value);
+
+    if (!record) {
+      return undefined;
+    }
+
+    for (const key of keys) {
+      if (record[key] !== undefined) {
+        return record[key];
+      }
+    }
+
+    return undefined;
+  }
+
+  private readString(value: unknown, ...keys: string[]): string | null {
+    const rawValue = keys.length > 0 ? this.readValue(value, ...keys) : value;
+
+    return typeof rawValue === 'string' && rawValue.trim().length > 0 ? rawValue.trim() : null;
+  }
+
+  private readNumber(value: unknown, ...keys: string[]): number | null {
+    const rawValue = this.readValue(value, ...keys);
+
+    if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
+      return rawValue;
+    }
+
+    if (typeof rawValue === 'string') {
+      const parsedValue = Number(rawValue);
+      return Number.isFinite(parsedValue) ? parsedValue : null;
+    }
+
+    return null;
+  }
+
+  private readArray(value: unknown, ...keys: string[]): unknown[] {
+    for (const key of keys) {
+      const rawValue = this.readValue(value, key);
+
+      if (Array.isArray(rawValue)) {
+        return rawValue;
+      }
+    }
+
+    return [];
+  }
+
+  private asRecord(value: unknown): Record<string, unknown> | null {
+    return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
   }
 
   private extractTags(value: unknown): string[] {
@@ -342,14 +382,28 @@ export class CatalogTabsApiService {
       .slice(0, 4);
   }
 
-  private extractImageUrls(value: unknown): string[] {
-    if (!Array.isArray(value)) {
-      return [];
+  private extractImageUrls(value: unknown[]): string[] {
+    return value
+      .map((entry) => {
+        if (typeof entry === 'string') {
+          return entry;
+        }
+
+        return this.readString(entry, 'imagePath', 'image_path');
+      })
+      .filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
+      .map((entry) => this.toAssetUrl(entry.trim()));
+  }
+
+  private toAssetUrl(path: string): string {
+    if (/^https?:\/\//i.test(path)) {
+      return path;
     }
 
-    return value
-      .filter((entry): entry is string => typeof entry === 'string' && entry.trim().length > 0)
-      .map((entry) => entry.trim());
+    const backendOrigin = this.appConfig.catalogBaseUrl.replace(/\/api\/?$/i, '');
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+
+    return `${backendOrigin}${normalizedPath}`;
   }
 
   private normalizeBadge(value: string | null): string | null {

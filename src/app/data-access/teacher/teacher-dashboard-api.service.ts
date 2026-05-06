@@ -4,31 +4,18 @@ import { map, Observable } from 'rxjs';
 
 import { AppConfigService } from '../../core/services/app-config.service';
 import {
-  TeacherDashboardResponse,
   TeacherDashboardStudentSummary,
   TeacherDashboardSummary,
-  TeacherDashboardTopStudentApiItem,
-  TeacherDashboardWeakStudentApiItem,
   TeacherDashboardWeakTopic,
-  TeacherDashboardWeakTopicApiItem,
   TeacherQuizAttemptAnswer,
-  TeacherQuizAttemptAnswerApiItem,
   TeacherQuizAttemptDetail,
-  TeacherQuizAttemptDetailResponse,
   TeacherQuizAttemptListItem,
-  TeacherQuizAttemptSummaryApiItem,
   TeacherStudentIdentity,
-  TeacherStudentIdentityApiItem,
   TeacherStudentListItem,
   TeacherStudentProgress,
-  TeacherStudentProgressResponse,
   TeacherStudentProgressSummary,
-  TeacherStudentProgressSummaryApiItem,
-  TeacherStudentsResponse,
   TeacherStudentTopicProgress,
-  TeacherStudentTopicProgressApiItem,
-  TeacherStudentTopicQuizAttempts,
-  TeacherStudentTopicQuizAttemptsResponse
+  TeacherStudentTopicQuizAttempts
 } from './teacher-dashboard.models';
 
 @Injectable({
@@ -40,23 +27,23 @@ export class TeacherDashboardApiService {
 
   getDashboard(): Observable<TeacherDashboardSummary> {
     return this.http
-      .get<TeacherDashboardResponse>(this.appConfig.teacherDashboardUrl)
-      .pipe(map((response) => this.mapDashboard(response.data)));
+      .get<unknown>(this.appConfig.teacherDashboardUrl)
+      .pipe(map((response) => this.mapDashboard(this.unwrapData(response))));
   }
 
   getStudents(): Observable<TeacherStudentListItem[]> {
-    return this.http.get<TeacherStudentsResponse>(this.appConfig.teacherStudentsUrl).pipe(
+    return this.http.get<unknown>(this.appConfig.teacherStudentsUrl).pipe(
       map((response) =>
-        (response.data ?? []).map((item) => ({
-          studentId: item?.id ?? 0,
-          userId: item?.user_id ?? 0,
-          fullName: item?.full_name?.trim() || 'Student',
-          email: item?.email?.trim() || 'No email provided',
-          phone: item?.phone?.trim() || 'No phone provided',
-          attemptsCount: item?.attempts_count ?? 0,
-          completedQuizzes: item?.completed_quizzes ?? 0,
-          averageScore: item?.average_score ?? 0,
-          bestScore: item?.best_score ?? 0
+        this.extractArray(response).map((item) => ({
+          studentId: this.readNumber(item, 'id', 'studentId', 'student_id') ?? 0,
+          userId: this.readNumber(item, 'userId', 'user_id') ?? 0,
+          fullName: this.readString(item, 'fullName', 'full_name') ?? 'Student',
+          email: this.readString(item, 'email') ?? 'No email provided',
+          phone: this.readString(item, 'phone') ?? 'No phone provided',
+          attemptsCount: this.readNumber(item, 'totalAttempts', 'attemptsCount', 'attempts_count') ?? 0,
+          completedQuizzes: this.readNumber(item, 'passedAttempts', 'completedQuizzes', 'completed_quizzes') ?? 0,
+          averageScore: this.readNumber(item, 'averageScore', 'average_score') ?? 0,
+          bestScore: this.readNumber(item, 'bestScore', 'best_score', 'averageScore', 'average_score') ?? 0
         }))
       )
     );
@@ -64,10 +51,8 @@ export class TeacherDashboardApiService {
 
   getStudentProgress(studentId: number): Observable<TeacherStudentProgress> {
     return this.http
-      .get<TeacherStudentProgressResponse>(
-        this.appConfig.teacherStudentProgressUrl(String(studentId))
-      )
-      .pipe(map((response) => this.mapStudentProgress(response.data)));
+      .get<unknown>(this.appConfig.teacherStudentProgressUrl(String(studentId)))
+      .pipe(map((response) => this.mapStudentProgress(this.unwrapData(response), studentId)));
   }
 
   getStudentTopicQuizAttempts(
@@ -75,231 +60,261 @@ export class TeacherDashboardApiService {
     topicId: number
   ): Observable<TeacherStudentTopicQuizAttempts> {
     return this.http
-      .get<TeacherStudentTopicQuizAttemptsResponse>(
-        this.appConfig.teacherStudentTopicQuizAttemptsUrl(String(studentId), String(topicId))
-      )
-      .pipe(map((response) => this.mapTopicQuizAttempts(response.data)));
+      .get<unknown>(this.appConfig.teacherStudentTopicQuizAttemptsUrl(String(studentId), String(topicId)))
+      .pipe(map((response) => this.mapTopicQuizAttempts(this.unwrapData(response), studentId, topicId)));
   }
 
   getQuizAttempt(quizAttemptId: number): Observable<TeacherQuizAttemptDetail> {
     return this.http
-      .get<TeacherQuizAttemptDetailResponse>(
-        this.appConfig.teacherQuizAttemptUrl(String(quizAttemptId))
-      )
-      .pipe(map((response) => this.mapQuizAttemptDetail(response.data)));
+      .get<unknown>(this.appConfig.teacherQuizAttemptUrl(String(quizAttemptId)))
+      .pipe(map((response) => this.mapQuizAttemptDetail(this.unwrapData(response))));
   }
 
-  private mapDashboard(data: TeacherDashboardResponse['data']): TeacherDashboardSummary {
+  private mapDashboard(data: unknown): TeacherDashboardSummary {
+    const weakStudents = this.readArray(data, 'weakStudents', 'weak_students').map((item) =>
+      this.mapWeakStudent(item)
+    );
+    const topStudents = this.readArray(data, 'topStudents', 'top_students').map((item) =>
+      this.mapTopStudent(item)
+    );
+    const weakTopics = this.readArray(data, 'weakTopics', 'weak_topics').map((item) =>
+      this.mapWeakTopic(item)
+    );
+
     return {
-      studentsCount: data?.students_count ?? 0,
-      studentsWithAttemptsCount: data?.students_with_attempts_count ?? 0,
-      totalAttemptsCount: data?.total_attempts_count ?? 0,
-      averageScore: data?.average_score ?? 0,
-      passedAttemptsCount: data?.passed_attempts_count ?? 0,
-      failedAttemptsCount: data?.failed_attempts_count ?? 0,
-      weakStudents: (data?.weak_students ?? []).map((item) => this.mapWeakStudent(item)),
-      topStudents: (data?.top_students ?? []).map((item) => this.mapTopStudent(item)),
-      weakTopics: (data?.weak_topics ?? []).map((item) => this.mapWeakTopic(item))
+      studentsCount: this.readNumber(data, 'totalStudents', 'students_count') ?? 0,
+      studentsWithAttemptsCount: this.readNumber(data, 'studentsWithAttemptsCount', 'students_with_attempts_count') ?? 0,
+      totalAttemptsCount: this.readNumber(data, 'totalAttempts', 'total_attempts_count') ?? 0,
+      averageScore: this.readNumber(data, 'averageScore', 'average_score') ?? 0,
+      passedAttemptsCount: this.readNumber(data, 'passedAttemptsCount', 'passed_attempts_count') ?? 0,
+      failedAttemptsCount: this.readNumber(data, 'failedAttemptsCount', 'failed_attempts_count') ?? 0,
+      weakStudents,
+      topStudents,
+      weakTopics
     };
   }
 
-  private mapWeakStudent(
-    item: TeacherDashboardWeakStudentApiItem
-  ): TeacherDashboardStudentSummary {
+  private mapWeakStudent(item: unknown): TeacherDashboardStudentSummary {
     return {
-      studentId: item?.student_id ?? 0,
-      userId: item?.user_id ?? 0,
-      fullName: item?.full_name?.trim() || 'Student',
-      email: item?.email?.trim() || 'No email provided',
-      averageScore: item?.average_score ?? 0,
-      attemptsCount: item?.attempts_count ?? 0
+      studentId: this.readNumber(item, 'studentId', 'student_id') ?? 0,
+      userId: this.readNumber(item, 'userId', 'user_id') ?? 0,
+      fullName: this.readString(item, 'fullName', 'full_name') ?? 'Student',
+      email: this.readString(item, 'email') ?? 'No email provided',
+      averageScore: this.readNumber(item, 'averageScore', 'average_score') ?? 0,
+      attemptsCount: this.readNumber(item, 'failedAttempts', 'attemptsCount', 'attempts_count') ?? 0
     };
   }
 
-  private mapTopStudent(item: TeacherDashboardTopStudentApiItem): TeacherDashboardStudentSummary {
+  private mapTopStudent(item: unknown): TeacherDashboardStudentSummary {
     return {
-      studentId: item?.student_id ?? 0,
-      userId: item?.user_id ?? 0,
-      fullName: item?.full_name?.trim() || 'Student',
-      email: item?.email?.trim() || 'No email provided',
-      averageScore: item?.average_score ?? 0,
-      bestScore: item?.best_score ?? 0,
-      attemptsCount: item?.attempts_count ?? 0
+      studentId: this.readNumber(item, 'studentId', 'student_id') ?? 0,
+      userId: this.readNumber(item, 'userId', 'user_id') ?? 0,
+      fullName: this.readString(item, 'fullName', 'full_name') ?? 'Student',
+      email: this.readString(item, 'email') ?? 'No email provided',
+      averageScore: this.readNumber(item, 'averageScore', 'average_score') ?? 0,
+      bestScore: this.readNumber(item, 'bestScore', 'best_score', 'averageScore', 'average_score') ?? 0,
+      attemptsCount: this.readNumber(item, 'passedAttempts', 'attemptsCount', 'attempts_count') ?? 0
     };
   }
 
-  private mapWeakTopic(item: TeacherDashboardWeakTopicApiItem): TeacherDashboardWeakTopic {
+  private mapWeakTopic(item: unknown): TeacherDashboardWeakTopic {
     return {
-      topicId: item?.topic_id ?? 0,
-      topicName: item?.topic_name?.trim() || 'Topic',
-      averageScore: item?.average_score ?? 0,
-      attemptsCount: item?.attempts_count ?? 0,
-      failedAttemptsCount: item?.failed_attempts_count ?? 0
+      topicId: this.readNumber(item, 'topicId', 'topic_id') ?? 0,
+      topicName: this.readString(item, 'topicName', 'topic_name') ?? 'Topic',
+      averageScore: this.readNumber(item, 'averageScore', 'average_score') ?? 0,
+      attemptsCount: this.readNumber(item, 'attemptsCount', 'attempts_count') ?? 0,
+      failedAttemptsCount: this.readNumber(item, 'failedAttempts', 'failed_attempts_count') ?? 0
     };
   }
 
-  private mapStudentProgress(
-    data: TeacherStudentProgressResponse['data']
-  ): TeacherStudentProgress {
+  private mapStudentProgress(data: unknown, fallbackStudentId: number): TeacherStudentProgress {
+    const progress = this.readValue(data, 'progress') ?? this.readValue(data, 'summary') ?? data;
+    const topics = this.readArray(progress, 'topics').map((topic) => this.mapStudentTopicProgress(topic));
+
     return {
-      student: this.mapStudentIdentity(data?.student),
-      summary: this.mapStudentProgressSummary(data?.summary),
-      topics: (data?.topics ?? [])
-        .map((topic) => this.mapStudentTopicProgress(topic))
-        .sort((firstTopic, secondTopic) => firstTopic.topicName.localeCompare(secondTopic.topicName))
+      student: this.mapStudentIdentity(this.readValue(data, 'student'), fallbackStudentId),
+      summary: this.mapStudentProgressSummary(progress, topics),
+      topics: topics.sort((firstTopic, secondTopic) => firstTopic.topicName.localeCompare(secondTopic.topicName))
     };
   }
 
   private mapTopicQuizAttempts(
-    data: TeacherStudentTopicQuizAttemptsResponse['data']
+    data: unknown,
+    fallbackStudentId: number,
+    fallbackTopicId: number
   ): TeacherStudentTopicQuizAttempts {
-    const topicId = data?.topic?.id ?? 0;
-    const topicName = data?.topic?.name?.trim() || 'Topic';
+    const attemptsSource = Array.isArray(data) ? data : this.readArray(data, 'attempts');
+    const attempts = attemptsSource.map((attempt) => this.mapQuizAttempt(attempt, fallbackTopicId));
+    const firstAttempt = attempts[0];
 
     return {
-      student: this.mapStudentIdentity(data?.student),
+      student: this.mapStudentIdentity(this.readValue(data, 'student'), fallbackStudentId),
+      topic: {
+        topicId: this.readNumber(this.readValue(data, 'topic'), 'id') ?? firstAttempt?.topicId ?? fallbackTopicId,
+        topicName: this.readString(this.readValue(data, 'topic'), 'name') ?? firstAttempt?.topicName ?? 'Topic'
+      },
+      attempts: attempts.sort(
+        (firstAttemptItem, secondAttemptItem) =>
+          new Date(firstAttemptItem.submittedAt).getTime() -
+          new Date(secondAttemptItem.submittedAt).getTime()
+      )
+    };
+  }
+
+  private mapQuizAttemptDetail(data: unknown): TeacherQuizAttemptDetail {
+    const topic = this.readValue(data, 'topic');
+    const topicId = this.readNumber(topic, 'id') ?? this.readNumber(data, 'topicId', 'topic_id') ?? 0;
+    const topicName = this.readString(topic, 'name') ?? this.readString(data, 'topicName', 'topic_name') ?? 'Topic';
+    const attemptId = this.readNumber(data, 'id', 'attemptId', 'attempt_id') ?? 0;
+
+    return {
+      attemptId,
+      student: this.mapStudentIdentity(this.readValue(data, 'student')),
       topic: {
         topicId,
         topicName
       },
-      attempts: (data?.attempts ?? [])
-        .map((attempt) => this.mapQuizAttempt(attempt, topicId, topicName))
-        .sort(
-          (firstAttempt, secondAttempt) =>
-            new Date(firstAttempt.submittedAt).getTime() -
-            new Date(secondAttempt.submittedAt).getTime()
-        )
+      summary: this.mapQuizAttempt(data, topicId, topicName),
+      answers: this.readArray(data, 'answers').map((answer) => this.mapQuizAttemptAnswer(answer))
     };
   }
 
-  private mapQuizAttemptDetail(
-    data: TeacherQuizAttemptDetailResponse['data']
-  ): TeacherQuizAttemptDetail {
-    const topicId = data?.topic?.id ?? 0;
-    const topicName = data?.topic?.name?.trim() || 'Topic';
-    const summary = data?.summary;
-
+  private mapStudentIdentity(item?: unknown, fallbackStudentId = 0): TeacherStudentIdentity {
     return {
-      attemptId: data?.id ?? 0,
-      student: this.mapStudentIdentity(data?.student),
-      topic: {
-        topicId,
-        topicName
-      },
-      summary: this.mapQuizAttemptSummary(data?.id ?? 0, topicId, topicName, summary),
-      answers: (data?.answers ?? []).map((answer) => this.mapQuizAttemptAnswer(answer))
-    };
-  }
-
-  private mapStudentIdentity(item?: TeacherStudentIdentityApiItem | null): TeacherStudentIdentity {
-    return {
-      studentId: item?.id ?? 0,
-      userId: item?.user_id ?? 0,
-      fullName: item?.full_name?.trim() || 'Student',
-      email: item?.email?.trim() || 'No email provided',
-      phone: item?.phone?.trim() || 'No phone provided'
+      studentId: this.readNumber(item, 'id', 'studentId', 'student_id') ?? fallbackStudentId,
+      userId: this.readNumber(item, 'userId', 'user_id') ?? 0,
+      fullName: this.readString(item, 'fullName', 'full_name') ?? 'Student',
+      email: this.readString(item, 'email') ?? 'No email provided',
+      phone: this.readString(item, 'phone') ?? 'No phone provided'
     };
   }
 
   private mapStudentProgressSummary(
-    item?: TeacherStudentProgressSummaryApiItem | null
+    item: unknown,
+    topics: TeacherStudentTopicProgress[]
   ): TeacherStudentProgressSummary {
     return {
-      completedQuizzes: item?.completed_quizzes ?? 0,
-      attemptsCount: item?.attempts_count ?? 0,
-      averageScore: item?.average_score ?? 0,
-      bestScore: item?.best_score ?? 0,
-      passedQuizzesCount: item?.passed_quizzes_count ?? 0,
-      failedQuizzesCount: item?.failed_quizzes_count ?? 0
+      completedQuizzes: this.readNumber(item, 'completedTopics', 'completed_quizzes') ?? 0,
+      attemptsCount: this.readNumber(item, 'totalAttempts', 'attempts_count') ?? 0,
+      averageScore: this.readNumber(item, 'averageScore', 'average_score') ?? 0,
+      bestScore: topics.reduce((maxScore, topic) => Math.max(maxScore, topic.bestScore), 0),
+      passedQuizzesCount: this.readNumber(item, 'passedAttempts', 'passed_quizzes_count') ?? 0,
+      failedQuizzesCount: this.readNumber(item, 'failedAttempts', 'failed_quizzes_count') ?? 0
     };
   }
 
-  private mapStudentTopicProgress(
-    item: TeacherStudentTopicProgressApiItem
-  ): TeacherStudentTopicProgress {
+  private mapStudentTopicProgress(item: unknown): TeacherStudentTopicProgress {
+    const bestScore = this.readNumber(item, 'bestScore', 'best_score') ?? 0;
+
     return {
-      topicId: item?.topic_id ?? 0,
-      topicName: item?.topic_name?.trim() || 'Topic',
-      attemptsCount: item?.attempts_count ?? 0,
-      latestScore: item?.latest_score ?? 0,
-      bestScore: item?.best_score ?? 0,
-      averageScore: item?.average_score ?? 0,
-      isImproving: item?.is_improving === true
+      topicId: this.readNumber(item, 'topicId', 'topic_id') ?? 0,
+      topicName: this.readString(item, 'topicName', 'topic_name') ?? 'Topic',
+      attemptsCount: this.readNumber(item, 'attemptsCount', 'attempts_count') ?? 0,
+      latestScore: this.readNumber(item, 'latestScore', 'latest_score') ?? bestScore,
+      bestScore,
+      averageScore: this.readNumber(item, 'averageScore', 'average_score') ?? bestScore,
+      isImproving: this.readValue(item, 'isImproving', 'is_improving', 'passed') === true
     };
   }
 
   private mapQuizAttempt(
-    item: {
-      readonly id?: number | null;
-      readonly topic?: { readonly id?: number | null; readonly name?: string | null } | null;
-      readonly total_questions?: number | null;
-      readonly correct_answers_count?: number | null;
-      readonly wrong_answers_count?: number | null;
-      readonly score_percentage?: number | string | null;
-      readonly passed?: boolean | null;
-      readonly started_at?: string | null;
-      readonly submitted_at?: string | null;
-    },
+    item: unknown,
     fallbackTopicId: number,
-    fallbackTopicName: string
+    fallbackTopicName = 'Topic'
   ): TeacherQuizAttemptListItem {
     return {
-      attemptId: item?.id ?? 0,
-      topicId: item?.topic?.id ?? fallbackTopicId,
-      topicName: item?.topic?.name?.trim() || fallbackTopicName,
-      totalQuestions: item?.total_questions ?? 0,
-      correctAnswersCount: item?.correct_answers_count ?? 0,
-      wrongAnswersCount: item?.wrong_answers_count ?? 0,
-      scorePercentage: this.toNumber(item?.score_percentage),
-      passed: item?.passed === true,
-      startedAt: item?.started_at?.trim() || '',
-      submittedAt: item?.submitted_at?.trim() || ''
+      attemptId: this.readNumber(item, 'id', 'attemptId', 'attempt_id') ?? 0,
+      topicId: this.readNumber(item, 'topicId', 'topic_id') ?? this.readNumber(this.readValue(item, 'topic'), 'id') ?? fallbackTopicId,
+      topicName: this.readString(item, 'topicName', 'topic_name') ?? this.readString(this.readValue(item, 'topic'), 'name') ?? fallbackTopicName,
+      totalQuestions: this.readNumber(item, 'totalQuestions', 'total_questions') ?? 0,
+      correctAnswersCount: this.readNumber(item, 'correctAnswersCount', 'correct_answers_count') ?? 0,
+      wrongAnswersCount: this.readNumber(item, 'wrongAnswersCount', 'wrong_answers_count') ?? 0,
+      scorePercentage: this.readNumber(item, 'scorePercentage', 'score_percentage') ?? 0,
+      passed: this.readValue(item, 'passed') === true,
+      startedAt: this.readString(item, 'startedAt', 'started_at') ?? '',
+      submittedAt: this.readString(item, 'submittedAt', 'submitted_at') ?? ''
     };
   }
 
-  private mapQuizAttemptSummary(
-    attemptId: number,
-    topicId: number,
-    topicName: string,
-    item?: TeacherQuizAttemptSummaryApiItem | null
-  ): TeacherQuizAttemptListItem {
+  private mapQuizAttemptAnswer(item: unknown): TeacherQuizAttemptAnswer {
     return {
-      attemptId,
-      topicId,
-      topicName,
-      totalQuestions: item?.total_questions ?? 0,
-      correctAnswersCount: item?.correct_answers_count ?? 0,
-      wrongAnswersCount: item?.wrong_answers_count ?? 0,
-      scorePercentage: this.toNumber(item?.score_percentage),
-      passed: item?.passed === true,
-      startedAt: item?.started_at?.trim() || '',
-      submittedAt: item?.submitted_at?.trim() || ''
+      questionId: this.readNumber(item, 'questionId', 'question_id') ?? 0,
+      questionText: this.readString(item, 'questionText', 'question_text') ?? 'Question',
+      choices: [],
+      selectedAnswer: this.readString(item, 'selectedAnswer', 'selected_answer') ?? '',
+      selectedAnswerText: this.readString(item, 'selectedAnswerText', 'selected_answer_text') ?? this.readString(item, 'selectedAnswer', 'selected_answer') ?? 'No answer selected',
+      correctAnswer: this.readString(item, 'correctAnswer', 'correct_answer') ?? '',
+      correctAnswerText: this.readString(item, 'correctAnswerText', 'correct_answer_text') ?? this.readString(item, 'correctAnswer', 'correct_answer') ?? '',
+      isCorrect: this.readValue(item, 'isCorrect', 'is_correct') === true
     };
   }
 
-  private mapQuizAttemptAnswer(item: TeacherQuizAttemptAnswerApiItem): TeacherQuizAttemptAnswer {
-    return {
-      questionId: item?.question_id ?? 0,
-      questionText: item?.question_text?.trim() || 'Question',
-      choices: (item?.choices ?? []).map((choice) => ({
-        key: choice?.key?.trim() || '',
-        text: choice?.text?.trim() || 'No answer text'
-      })),
-      selectedAnswer: item?.selected_answer?.trim() || '',
-      selectedAnswerText: item?.selected_answer_text?.trim() || 'No answer selected',
-      correctAnswer: item?.correct_answer?.trim() || '',
-      correctAnswerText: item?.correct_answer_text?.trim() || item?.correct_answer?.trim() || '',
-      isCorrect: item?.is_correct === true
-    };
-  }
+  private extractArray(response: unknown): unknown[] {
+    const unwrapped = this.unwrapData(response);
 
-  private toNumber(value: number | string | null | undefined): number {
-    if (typeof value === 'number') {
-      return value;
+    if (Array.isArray(unwrapped)) {
+      return unwrapped;
     }
 
-    const parsedValue = Number(value);
+    return this.readArray(unwrapped, 'items');
+  }
 
-    return Number.isFinite(parsedValue) ? parsedValue : 0;
+  private unwrapData(response: unknown): unknown {
+    const record = this.asRecord(response);
+
+    return record && record['data'] !== undefined && record['data'] !== null ? record['data'] : response;
+  }
+
+  private readValue(value: unknown, ...keys: string[]): unknown {
+    const record = this.asRecord(value);
+
+    if (!record) {
+      return undefined;
+    }
+
+    for (const key of keys) {
+      if (record[key] !== undefined) {
+        return record[key];
+      }
+    }
+
+    return undefined;
+  }
+
+  private readString(value: unknown, ...keys: string[]): string | null {
+    const rawValue = this.readValue(value, ...keys);
+
+    return typeof rawValue === 'string' && rawValue.trim().length > 0 ? rawValue.trim() : null;
+  }
+
+  private readNumber(value: unknown, ...keys: string[]): number | null {
+    const rawValue = this.readValue(value, ...keys);
+
+    if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
+      return rawValue;
+    }
+
+    if (typeof rawValue === 'string') {
+      const parsedValue = Number(rawValue);
+      return Number.isFinite(parsedValue) ? parsedValue : null;
+    }
+
+    return null;
+  }
+
+  private readArray(value: unknown, ...keys: string[]): unknown[] {
+    for (const key of keys) {
+      const rawValue = this.readValue(value, key);
+
+      if (Array.isArray(rawValue)) {
+        return rawValue;
+      }
+    }
+
+    return [];
+  }
+
+  private asRecord(value: unknown): Record<string, unknown> | null {
+    return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null;
   }
 }

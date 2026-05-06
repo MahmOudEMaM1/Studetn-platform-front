@@ -83,9 +83,9 @@ export class App {
 
     effect(() => {
       if (this.authSession.isAuthenticated()) {
-        this.notificationsCenter.startPolling();
+        this.notificationsCenter.startRealtime();
       } else {
-        this.notificationsCenter.stopPolling();
+        this.notificationsCenter.stopRealtime();
       }
     });
 
@@ -146,7 +146,7 @@ export class App {
 
   protected logout(): void {
     this.authSession.clear();
-    this.notificationsCenter.stopPolling();
+    this.notificationsCenter.stopRealtime();
     this.notificationsCenter.closePanel();
     this.closeMobileMenu();
     void this.router.navigate([appRouteLinks.login]);
