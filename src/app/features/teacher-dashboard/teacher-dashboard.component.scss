@@ -434,11 +434,10 @@ h1 {
 }
 
 .student-score-chart-shell {
-  max-height: 520px;
-  overflow-y: auto;
+  min-height: 460px;
+  overflow: visible;
   overflow-x: hidden;
   padding-right: 10px;
-  scrollbar-gutter: stable;
 }
 
 .student-table-card,

@@ -530,7 +530,8 @@ export class TeacherDashboardComponent {
 
   protected readonly studentScoresChartOptions = computed<AxisChartOptions>(() => {
     const students = this.sortedStudents();
-    const chartHeight = Math.max(360, students.length * 34);
+    const chartHeight = this.studentScoreChartHeight(students.length);
+    const compactChart = this.isStudentScoreChartExpanded();
 
     return {
       series: [
@@ -544,8 +545,8 @@ export class TeacherDashboardComponent {
       plotOptions: {
         bar: {
           horizontal: true,
-          borderRadius: 8,
-          barHeight: '44%',
+          borderRadius: compactChart ? 5 : 7,
+          barHeight: compactChart ? '36%' : '42%',
           dataLabels: {
             position: 'top'
           }
@@ -571,7 +572,7 @@ export class TeacherDashboardComponent {
         labels: {
           formatter: (value: string | number) => `${value}%`,
           style: {
-            fontSize: '12px',
+            fontSize: compactChart ? '10px' : '12px',
             fontWeight: 700,
             colors: ['#7a6f86']
           }
@@ -581,7 +582,7 @@ export class TeacherDashboardComponent {
         labels: {
           maxWidth: 220,
           style: {
-            fontSize: '12px',
+            fontSize: compactChart ? '10px' : '12px',
             fontWeight: 800,
             colors: students.map(() => '#4d4259')
           }
@@ -619,7 +620,7 @@ export class TeacherDashboardComponent {
           breakpoint: 900,
           options: {
             chart: {
-              height: Math.max(360, students.length * 42)
+              height: this.studentScoreChartHeight(students.length, true)
             },
             yaxis: {
               labels: {
@@ -634,7 +635,8 @@ export class TeacherDashboardComponent {
 
   protected readonly studentScoreRangeChartOptions = computed<AxisChartOptions>(() => {
     const students = this.sortedStudentScoreRanges();
-    const chartHeight = Math.max(360, students.length * 42);
+    const chartHeight = this.studentScoreChartHeight(students.length);
+    const compactChart = this.isStudentScoreChartExpanded();
 
     return {
       series: [
@@ -652,8 +654,8 @@ export class TeacherDashboardComponent {
       plotOptions: {
         bar: {
           horizontal: true,
-          borderRadius: 8,
-          barHeight: '58%'
+          borderRadius: compactChart ? 5 : 7,
+          barHeight: compactChart ? '44%' : '52%'
         }
       },
       dataLabels: {
@@ -676,7 +678,7 @@ export class TeacherDashboardComponent {
         labels: {
           formatter: (value: string | number) => `${value}%`,
           style: {
-            fontSize: '12px',
+            fontSize: compactChart ? '10px' : '12px',
             fontWeight: 700,
             colors: ['#7a6f86']
           }
@@ -686,7 +688,7 @@ export class TeacherDashboardComponent {
         labels: {
           maxWidth: 220,
           style: {
-            fontSize: '12px',
+            fontSize: compactChart ? '10px' : '12px',
             fontWeight: 800,
             colors: students.map(() => '#4d4259')
           }
@@ -725,7 +727,7 @@ export class TeacherDashboardComponent {
           breakpoint: 900,
           options: {
             chart: {
-              height: Math.max(360, students.length * 48)
+              height: this.studentScoreChartHeight(students.length, true)
             },
             yaxis: {
               labels: {
@@ -1341,6 +1343,17 @@ export class TeacherDashboardComponent {
       foreColor: '#61556f',
       background: 'transparent'
     };
+  }
+
+  private studentScoreChartHeight(studentCount: number, isMobile = false): number {
+    if (this.isStudentScoreChartExpanded()) {
+      return isMobile ? 620 : 720;
+    }
+
+    const baseHeight = isMobile ? 420 : 460;
+    const rowHeight = isMobile ? 14 : 16;
+
+    return Math.max(baseHeight, Math.min(680, studentCount * rowHeight + 126));
   }
 
   private percentDataLabels(): ApexDataLabels {
