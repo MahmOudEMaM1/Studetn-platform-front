@@ -31,6 +31,153 @@ app-root {
   overflow: hidden;
 }
 
+.chart-head-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.chart-action-button {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid rgba(184, 176, 205, 0.82);
+  border-radius: 999px;
+  background: #fff;
+  color: #31263b;
+  font: inherit;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 12px 28px rgba(103, 90, 120, 0.1);
+  transition: transform 140ms ease, border-color 160ms ease, background 160ms ease;
+}
+
+.chart-action-button:hover {
+  transform: translateY(-1px);
+  border-color: rgba(61, 213, 201, 0.94);
+  background: rgba(239, 255, 252, 0.96);
+}
+
+.chart-view-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(198, 189, 216, 0.72);
+  border-radius: 999px;
+  background: rgba(244, 241, 249, 0.86);
+}
+
+.chart-view-switch button {
+  min-height: 30px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #665a70;
+  font: inherit;
+  font-size: 0.82rem;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.chart-view-switch .chart-view-switch-active {
+  background: #fff;
+  color: #1f7b67;
+  box-shadow: 0 8px 18px rgba(75, 188, 190, 0.16);
+}
+
+.chart-inline-error {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(255, 245, 247, 0.94);
+  color: #9a3b50;
+  font-weight: 800;
+}
+
+.chart-fullscreen {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: grid;
+  padding: 18px;
+  background: rgba(36, 25, 36, 0.48);
+  backdrop-filter: blur(12px);
+  isolation: isolate;
+}
+
+.chart-fullscreen-panel {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-self: stretch;
+  gap: 12px;
+  height: 100%;
+  min-height: 0;
+  padding: 18px 18px 20px;
+  border: 1px solid rgba(198, 189, 216, 0.74);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 30px 90px rgba(28, 20, 34, 0.24);
+  overflow: hidden;
+}
+
+.chart-fullscreen-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: start;
+  min-height: 74px;
+  padding: 6px 6px 14px;
+  border-bottom: 1px solid rgba(198, 189, 216, 0.42);
+}
+
+.chart-fullscreen-head h2 {
+  margin: 0;
+  color: #241924;
+  font-size: clamp(1.65rem, 3vw, 2.7rem);
+  line-height: 1;
+}
+
+.chart-fullscreen-body {
+  min-height: 0;
+  overflow: auto;
+  padding: 104px 88px 20px 0;
+  scrollbar-color: rgba(36, 25, 36, 0.72) rgba(244, 241, 249, 0.92);
+  scrollbar-width: thin;
+}
+
+.chart-fullscreen-body .apexcharts-canvas,
+.chart-fullscreen-body .apexcharts-svg {
+  overflow: visible;
+}
+
+.chart-fullscreen-body .apexcharts-tooltip {
+  z-index: 2;
+  max-width: min(340px, calc(100vw - 72px));
+}
+
+@media (max-width: 720px) {
+  .chart-fullscreen {
+    padding: 10px;
+  }
+
+  .chart-fullscreen-panel {
+    padding: 14px;
+    border-radius: 18px;
+  }
+
+  .chart-fullscreen-head {
+    min-height: 0;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .chart-fullscreen-body {
+    padding: 80px 28px 16px 0;
+  }
+}
+
 .page-shell {
   height: 100dvh;
   min-height: 0;

@@ -55,6 +55,22 @@ export interface TeacherStudentsResponse {
   readonly data?: TeacherStudentApiItem[] | null;
 }
 
+export interface TeacherStudentScoreRangeApiItem {
+  readonly student_id?: number | null;
+  readonly studentId?: number | null;
+  readonly user_id?: number | null;
+  readonly userId?: number | null;
+  readonly full_name?: string | null;
+  readonly fullName?: string | null;
+  readonly email?: string | null;
+  readonly attempts_count?: number | null;
+  readonly attemptsCount?: number | null;
+  readonly best_score?: number | null;
+  readonly bestScore?: number | null;
+  readonly low_score?: number | null;
+  readonly lowScore?: number | null;
+}
+
 export interface TeacherStudentIdentityApiItem {
   readonly id?: number | null;
   readonly user_id?: number | null;
@@ -191,6 +207,16 @@ export interface TeacherStudentListItem {
   readonly completedQuizzes: number;
   readonly averageScore: number;
   readonly bestScore: number;
+}
+
+export interface TeacherStudentScoreRange {
+  readonly studentId: number;
+  readonly userId: number;
+  readonly fullName: string;
+  readonly email: string;
+  readonly attemptsCount: number;
+  readonly bestScore: number;
+  readonly lowScore: number;
 }
 
 export interface TeacherStudentIdentity {

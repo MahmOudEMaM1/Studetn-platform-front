@@ -30,6 +30,7 @@ export interface ApiEndpointsConfig {
   readonly teacher: {
     readonly dashboard: string;
     readonly students: string;
+    readonly studentScoreRanges: string;
     readonly studentProgressById: string;
     readonly studentTopicQuizAttemptsById: string;
     readonly quizAttemptById: string;
@@ -76,6 +77,7 @@ export const appApiConfig: ApiEndpointsConfig = {
   teacher: {
     dashboard: '/teacher/dashboard',
     students: '/teacher/students',
+    studentScoreRanges: '/teacher/students/score-ranges',
     studentProgressById: '/teacher/students',
     studentTopicQuizAttemptsById: '/teacher/students',
     quizAttemptById: '/teacher/quiz-attempts',

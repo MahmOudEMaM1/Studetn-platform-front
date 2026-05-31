@@ -117,6 +117,13 @@ export class AppConfigService {
     return this.buildApiUrl(this.apiConfig.teacherBaseUrl, this.apiConfig.teacher.students);
   }
 
+  get teacherStudentScoreRangesUrl(): string {
+    return this.buildApiUrl(
+      this.apiConfig.teacherBaseUrl,
+      this.apiConfig.teacher.studentScoreRanges
+    );
+  }
+
   teacherStudentProgressUrl(studentId: string): string {
     return this.buildApiUrl(
       this.apiConfig.teacherBaseUrl,

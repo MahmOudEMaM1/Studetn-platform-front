@@ -232,16 +232,58 @@
             }
 
             @case ('students') {
+              <section class="student-list-summary">
+                @for (metric of studentListMetrics(); track metric.label) {
+                  <article class="student-summary-card">
+                    <span>{{ metric.label }}</span>
+                    <strong>{{ metric.value }}</strong>
+                    <p>{{ metric.note }}</p>
+                  </article>
+                }
+              </section>
+
               <article class="panel chart-panel wide-panel">
                 <div class="panel-head">
                   <div>
                     <p class="eyebrow">/teacher/students</p>
                     <h2>Students score distribution</h2>
                   </div>
+                  <div class="chart-head-actions">
+                    <div class="chart-view-switch" role="group" aria-label="Student score chart type">
+                      <button
+                        type="button"
+                        [class.chart-view-switch-active]="activeStudentScoreChart() === 'average'"
+                        [attr.aria-pressed]="activeStudentScoreChart() === 'average'"
+                        (click)="selectStudentScoreChart('average')"
+                      >
+                        Average score
+                      </button>
+                      <button
+                        type="button"
+                        [class.chart-view-switch-active]="activeStudentScoreChart() === 'range'"
+                        [attr.aria-pressed]="activeStudentScoreChart() === 'range'"
+                        (click)="selectStudentScoreChart('range')"
+                      >
+                        Best / low score
+                      </button>
+                    </div>
+                    <span class="chart-note">{{ studentScoreChartNote() }}</span>
+                    <button
+                      class="chart-action-button"
+                      type="button"
+                      (click)="openStudentScoreChart()"
+                    >
+                      Full screen
+                    </button>
+                  </div>
                 </div>
 
-                @if (studentScoresChartOptions(); as chart) {
-                  <div class="chart-shell">
+                @if (studentScoreRangesError()) {
+                  <p class="chart-inline-error">{{ studentScoreRangesError() }}</p>
+                }
+
+                @if (activeStudentScoreChartOptions(); as chart) {
+                  <div class="chart-shell student-score-chart-shell">
                     <apx-chart
                       [series]="chart.series"
                       [chart]="chart.chart"
@@ -264,19 +306,109 @@
                 }
               </article>
 
+              @if (isStudentScoreChartExpanded()) {
+                <section
+                  class="chart-fullscreen"
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Students score distribution full screen chart"
+                  (click)="closeStudentScoreChart()"
+                >
+                  <div class="chart-fullscreen-panel" (click)="$event.stopPropagation()">
+                    <div class="chart-fullscreen-head">
+                      <div>
+                        <p class="eyebrow">/teacher/students</p>
+                        <h2>Students score distribution</h2>
+                      </div>
+                      <div class="chart-head-actions">
+                        <div class="chart-view-switch" role="group" aria-label="Student score chart type">
+                          <button
+                            type="button"
+                            [class.chart-view-switch-active]="activeStudentScoreChart() === 'average'"
+                            [attr.aria-pressed]="activeStudentScoreChart() === 'average'"
+                            (click)="selectStudentScoreChart('average')"
+                          >
+                            Average score
+                          </button>
+                          <button
+                            type="button"
+                            [class.chart-view-switch-active]="activeStudentScoreChart() === 'range'"
+                            [attr.aria-pressed]="activeStudentScoreChart() === 'range'"
+                            (click)="selectStudentScoreChart('range')"
+                          >
+                            Best / low score
+                          </button>
+                        </div>
+                        <button
+                          class="chart-action-button"
+                          type="button"
+                          (click)="closeStudentScoreChart()"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+
+                    @if (studentScoreRangesError()) {
+                      <p class="chart-inline-error">{{ studentScoreRangesError() }}</p>
+                    }
+
+                    @if (activeStudentScoreChartOptions(); as fullscreenChart) {
+                      <div class="chart-shell chart-fullscreen-body">
+                        <apx-chart
+                          [series]="fullscreenChart.series"
+                          [chart]="fullscreenChart.chart"
+                          [colors]="fullscreenChart.colors"
+                          [plotOptions]="fullscreenChart.plotOptions"
+                          [dataLabels]="fullscreenChart.dataLabels"
+                          [fill]="fullscreenChart.fill"
+                          [stroke]="fullscreenChart.stroke"
+                          [markers]="fullscreenChart.markers"
+                          [xaxis]="fullscreenChart.xaxis"
+                          [yaxis]="fullscreenChart.yaxis"
+                          [grid]="fullscreenChart.grid"
+                          [tooltip]="fullscreenChart.tooltip"
+                          [legend]="fullscreenChart.legend"
+                          [states]="fullscreenChart.states"
+                          [noData]="fullscreenChart.noData"
+                          [responsive]="fullscreenChart.responsive"
+                        />
+                      </div>
+                    }
+                  </div>
+                </section>
+              }
+
               <section class="student-roster">
-                @for (student of students(); track student.studentId) {
+                @for (student of sortedStudents(); track student.studentId) {
                   <article class="student-table-card">
-                    <div>
-                      <strong>{{ student.fullName }}</strong>
-                      <p>{{ student.email }}</p>
-                      <p>{{ student.phone }}</p>
+                    <div class="student-identity">
+                      <span class="student-avatar">{{ studentInitials(student.fullName) }}</span>
+                      <div>
+                        <strong>{{ student.fullName }}</strong>
+                        <p>{{ student.email }}</p>
+                        <p>{{ student.phone }}</p>
+                      </div>
+                    </div>
+                    <div class="student-score-meter">
+                      <span
+                        [style.width.%]="student.averageScore"
+                        [class.student-score-meter-empty]="student.averageScore === 0"
+                      ></span>
                     </div>
                     <div class="student-table-stats">
+                      <span
+                        class="score-pill"
+                        [class.score-pill-strong]="student.averageScore >= 80"
+                        [class.score-pill-stable]="student.averageScore >= 60 && student.averageScore < 80"
+                        [class.score-pill-low]="student.averageScore < 60 && student.attemptsCount > 0"
+                        [class.score-pill-empty]="student.attemptsCount === 0"
+                      >
+                        {{ scoreStatusLabel(student) }}
+                      </span>
                       <span>{{ student.completedQuizzes }} completed</span>
                       <span>{{ student.attemptsCount }} attempts</span>
                       <span>{{ student.averageScore }}% avg</span>
-                      <span>{{ student.bestScore }}% best</span>
                     </div>
                     <button type="button" (click)="selectStudent(student.studentId); selectAnalysis('progress')">
                       Open progress
@@ -317,7 +449,7 @@
                   <div class="panel-head">
                     <div>
                       <p class="eyebrow">Topic analysis</p>
-                      <h2>Latest, average, and best score by topic</h2>
+                      <h2>Best score by topic</h2>
                     </div>
                   </div>
 

@@ -33,11 +33,13 @@ import {
   TeacherQuizAttemptDetail,
   TeacherStudentListItem,
   TeacherStudentProgress,
+  TeacherStudentScoreRange,
   TeacherStudentTopicProgress,
   TeacherStudentTopicQuizAttempts
 } from '../../data-access/teacher/teacher-dashboard.models';
 
 type TeacherAnalysisView = 'overview' | 'students' | 'progress' | 'attempts' | 'review';
+type StudentScoreChartView = 'average' | 'range';
 
 type WeakTopicsChartOptions = {
   series: ApexAxisChartSeries;
@@ -117,19 +119,25 @@ export class TeacherDashboardComponent {
 
   protected readonly summary = signal<TeacherDashboardSummary | null>(null);
   protected readonly students = signal<TeacherStudentListItem[]>([]);
+  protected readonly studentScoreRanges = signal<TeacherStudentScoreRange[]>([]);
   protected readonly studentProgress = signal<TeacherStudentProgress | null>(null);
   protected readonly topicAttempts = signal<TeacherStudentTopicQuizAttempts | null>(null);
   protected readonly selectedAttemptDetail = signal<TeacherQuizAttemptDetail | null>(null);
 
   protected readonly activeAnalysis = signal<TeacherAnalysisView>('overview');
+  protected readonly activeStudentScoreChart = signal<StudentScoreChartView>('average');
   protected readonly selectedStudentId = signal<number | null>(null);
   protected readonly selectedTopicId = signal<number | null>(null);
   protected readonly selectedAttemptId = signal<number | null>(null);
+  protected readonly isStudentScoreChartExpanded = signal(false);
 
   protected readonly isLoading = signal(true);
   protected readonly isAnalysisLoading = signal(false);
+  protected readonly isStudentScoreRangesLoading = signal(false);
+  private readonly hasLoadedStudentScoreRanges = signal(false);
   protected readonly loadError = signal('');
   protected readonly analysisError = signal('');
+  protected readonly studentScoreRangesError = signal('');
   protected readonly activeUser = this.authSession.currentUser;
 
   protected readonly analysisCategories: TeacherAnalysisCategory[] = [
@@ -188,6 +196,73 @@ export class TeacherDashboardComponent {
     const attempts = this.topicAttempts()?.attempts ?? [];
 
     return attempts.find((attempt) => attempt.attemptId === attemptId) ?? attempts[0] ?? null;
+  });
+
+  protected readonly sortedStudents = computed(() =>
+    [...this.students()].sort(
+      (firstStudent, secondStudent) =>
+        secondStudent.averageScore - firstStudent.averageScore ||
+        secondStudent.attemptsCount - firstStudent.attemptsCount ||
+        firstStudent.fullName.localeCompare(secondStudent.fullName)
+    )
+  );
+
+  protected readonly sortedStudentScoreRanges = computed(() =>
+    [...this.studentScoreRanges()].sort(
+      (firstStudent, secondStudent) =>
+        secondStudent.bestScore - firstStudent.bestScore ||
+        secondStudent.lowScore - firstStudent.lowScore ||
+        firstStudent.fullName.localeCompare(secondStudent.fullName)
+    )
+  );
+
+  protected readonly studentScoreChartNote = computed(() =>
+    this.activeStudentScoreChart() === 'average'
+      ? 'Sorted by average score'
+      : 'Sorted by best score'
+  );
+
+  protected readonly studentListMetrics = computed<TeacherMetricCard[]>(() => {
+    const students = this.students();
+    const studentsWithAttempts = students.filter((student) => student.attemptsCount > 0);
+    const topScore = students.reduce(
+      (bestScore, student) => Math.max(bestScore, student.bestScore),
+      0
+    );
+    const averageScore =
+      studentsWithAttempts.length > 0
+        ? Number(
+            (
+              studentsWithAttempts.reduce(
+                (totalScore, student) => totalScore + student.averageScore,
+                0
+              ) / studentsWithAttempts.length
+            ).toFixed(2)
+          )
+        : 0;
+
+    return [
+      {
+        label: 'Students',
+        value: students.length,
+        note: `${studentsWithAttempts.length} have submitted attempts`
+      },
+      {
+        label: 'Class Average',
+        value: averageScore,
+        note: 'Across students with attempts'
+      },
+      {
+        label: 'Top Score',
+        value: topScore,
+        note: 'Best score in this roster'
+      },
+      {
+        label: 'No Attempts',
+        value: students.length - studentsWithAttempts.length,
+        note: 'Students to follow up with'
+      }
+    ];
   });
 
   protected readonly metrics = computed<TeacherMetricCard[]>(() => {
@@ -454,28 +529,31 @@ export class TeacherDashboardComponent {
   });
 
   protected readonly studentScoresChartOptions = computed<AxisChartOptions>(() => {
-    const students = this.students();
+    const students = this.sortedStudents();
+    const chartHeight = Math.max(360, students.length * 34);
 
     return {
       series: [
         {
           name: 'Average score',
           data: students.map((student) => Number(student.averageScore.toFixed(2)))
-        },
-        {
-          name: 'Best score',
-          data: students.map((student) => Number(student.bestScore.toFixed(2)))
         }
       ],
-      chart: this.axisChartBase('bar', 360),
-      colors: ['#58d6d2', '#9f8cf2'],
+      chart: this.axisChartBase('bar', chartHeight),
+      colors: ['#58d6d2'],
       plotOptions: {
         bar: {
-          borderRadius: 10,
-          columnWidth: '48%'
+          horizontal: true,
+          borderRadius: 8,
+          barHeight: '44%',
+          dataLabels: {
+            position: 'top'
+          }
         }
       },
-      dataLabels: this.percentDataLabels(),
+      dataLabels: {
+        enabled: false
+      },
       fill: {
         opacity: 0.92
       },
@@ -488,17 +566,27 @@ export class TeacherDashboardComponent {
       },
       xaxis: {
         categories: students.map((student) => student.fullName),
+        min: 0,
+        max: 100,
         labels: {
-          trim: true,
-          rotate: -12,
+          formatter: (value: string | number) => `${value}%`,
           style: {
             fontSize: '12px',
             fontWeight: 700,
-            colors: students.map(() => '#5b5068')
+            colors: ['#7a6f86']
           }
         }
       },
-      yaxis: this.scoreYAxis(),
+      yaxis: {
+        labels: {
+          maxWidth: 220,
+          style: {
+            fontSize: '12px',
+            fontWeight: 800,
+            colors: students.map(() => '#4d4259')
+          }
+        }
+      },
       grid: this.softGrid(),
       tooltip: {
         custom: ({ dataPointIndex }: { dataPointIndex: number }) => {
@@ -526,9 +614,135 @@ export class TeacherDashboardComponent {
       noData: {
         text: 'No students data available'
       },
-      responsive: this.axisResponsive()
+      responsive: [
+        {
+          breakpoint: 900,
+          options: {
+            chart: {
+              height: Math.max(360, students.length * 42)
+            },
+            yaxis: {
+              labels: {
+                maxWidth: 150
+              }
+            }
+          }
+        }
+      ]
     };
   });
+
+  protected readonly studentScoreRangeChartOptions = computed<AxisChartOptions>(() => {
+    const students = this.sortedStudentScoreRanges();
+    const chartHeight = Math.max(360, students.length * 42);
+
+    return {
+      series: [
+        {
+          name: 'Best score',
+          data: students.map((student) => Number(student.bestScore.toFixed(2)))
+        },
+        {
+          name: 'Low score',
+          data: students.map((student) => Number(student.lowScore.toFixed(2)))
+        }
+      ],
+      chart: this.axisChartBase('bar', chartHeight),
+      colors: ['#58d6d2', '#ff8c9b'],
+      plotOptions: {
+        bar: {
+          horizontal: true,
+          borderRadius: 8,
+          barHeight: '58%'
+        }
+      },
+      dataLabels: {
+        enabled: false
+      },
+      fill: {
+        opacity: 0.94
+      },
+      stroke: {
+        show: true,
+        width: 0
+      },
+      markers: {
+        size: 0
+      },
+      xaxis: {
+        categories: students.map((student) => student.fullName),
+        min: 0,
+        max: 100,
+        labels: {
+          formatter: (value: string | number) => `${value}%`,
+          style: {
+            fontSize: '12px',
+            fontWeight: 700,
+            colors: ['#7a6f86']
+          }
+        }
+      },
+      yaxis: {
+        labels: {
+          maxWidth: 220,
+          style: {
+            fontSize: '12px',
+            fontWeight: 800,
+            colors: students.map(() => '#4d4259')
+          }
+        }
+      },
+      grid: this.softGrid(),
+      tooltip: {
+        custom: ({ dataPointIndex }: { dataPointIndex: number }) => {
+          const student = students[dataPointIndex];
+
+          if (!student) {
+            return '';
+          }
+
+          return this.tooltipShell(
+            student.fullName,
+            [
+              `Best: ${student.bestScore}%`,
+              `Low: ${student.lowScore}%`,
+              `Attempts: ${student.attemptsCount}`,
+              student.email
+            ],
+            student.attemptsCount > 0 ? '#1e7b6e' : '#9a6220'
+          );
+        }
+      },
+      legend: this.bottomLegend(),
+      states: this.neutralStates(),
+      noData: {
+        text: this.isStudentScoreRangesLoading()
+          ? 'Loading score ranges...'
+          : 'No score range data available'
+      },
+      responsive: [
+        {
+          breakpoint: 900,
+          options: {
+            chart: {
+              height: Math.max(360, students.length * 48)
+            },
+            yaxis: {
+              labels: {
+                maxWidth: 150
+              }
+            }
+          }
+        }
+      ]
+    };
+  });
+
+  protected readonly activeStudentScoreChartOptions = computed(() =>
+    this.activeStudentScoreChart() === 'average'
+      ? this.studentScoresChartOptions()
+      : this.studentScoreRangeChartOptions()
+  );
 
   protected readonly topicProgressChartOptions = computed<AxisChartOptions>(() => {
     const topics = this.studentProgress()?.topics ?? [];
@@ -536,25 +750,17 @@ export class TeacherDashboardComponent {
     return {
       series: [
         {
-          name: 'Latest',
-          data: topics.map((topic) => Number(topic.latestScore.toFixed(2)))
-        },
-        {
-          name: 'Average',
-          data: topics.map((topic) => Number(topic.averageScore.toFixed(2)))
-        },
-        {
-          name: 'Best',
+          name: 'Best score',
           data: topics.map((topic) => Number(topic.bestScore.toFixed(2)))
         }
       ],
       chart: this.axisChartBase('bar', 360),
-      colors: ['#58d6d2', '#7ec8ff', '#a998f2'],
+      colors: ['#58d6d2'],
       plotOptions: {
         bar: {
           horizontal: true,
           borderRadius: 8,
-          barHeight: '58%'
+          barHeight: '44%'
         }
       },
       dataLabels: {
@@ -600,8 +806,6 @@ export class TeacherDashboardComponent {
           return this.tooltipShell(
             topic.topicName,
             [
-              `Latest: ${topic.latestScore}%`,
-              `Average: ${topic.averageScore}%`,
               `Best: ${topic.bestScore}%`,
               `Attempts: ${topic.attemptsCount}`,
               topic.isImproving ? 'Trend: improving' : 'Trend: needs follow-up'
@@ -810,6 +1014,15 @@ export class TeacherDashboardComponent {
     }
   }
 
+  protected selectStudentScoreChart(chart: StudentScoreChartView): void {
+    this.activeStudentScoreChart.set(chart);
+    this.studentScoreRangesError.set('');
+
+    if (chart === 'range') {
+      this.loadStudentScoreRanges();
+    }
+  }
+
   protected selectStudent(studentId: number): void {
     if (this.selectedStudentId() === studentId) {
       return;
@@ -853,6 +1066,14 @@ export class TeacherDashboardComponent {
     this.loadSelectedAttemptDetail();
   }
 
+  protected openStudentScoreChart(): void {
+    this.isStudentScoreChartExpanded.set(true);
+  }
+
+  protected closeStudentScoreChart(): void {
+    this.isStudentScoreChartExpanded.set(false);
+  }
+
   protected isCorrectChoice(
     answer: TeacherQuizAttemptAnswer,
     choice: TeacherQuizAttemptAnswerChoice
@@ -888,6 +1109,33 @@ export class TeacherDashboardComponent {
     }).format(date);
   }
 
+  protected studentInitials(name: string): string {
+    const initials = name
+      .split(/\s+/)
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part.charAt(0).toUpperCase())
+      .join('');
+
+    return initials || 'S';
+  }
+
+  protected scoreStatusLabel(student: TeacherStudentListItem): string {
+    if (student.attemptsCount === 0) {
+      return 'No attempts';
+    }
+
+    if (student.averageScore >= 80) {
+      return 'Strong';
+    }
+
+    if (student.averageScore >= 60) {
+      return 'Stable';
+    }
+
+    return 'Needs support';
+  }
+
   private openAttemptReviewAnalysis(): void {
     if (this.topicAttempts()?.attempts.length) {
       this.loadSelectedAttemptDetail();
@@ -895,6 +1143,31 @@ export class TeacherDashboardComponent {
     }
 
     this.loadSelectedTopicAttempts(true);
+  }
+
+  private loadStudentScoreRanges(): void {
+    if (this.hasLoadedStudentScoreRanges() || this.isStudentScoreRangesLoading()) {
+      return;
+    }
+
+    this.isStudentScoreRangesLoading.set(true);
+    this.studentScoreRangesError.set('');
+
+    this.teacherDashboardApi
+      .getStudentScoreRanges()
+      .pipe(
+        finalize(() => this.isStudentScoreRangesLoading.set(false)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe({
+        next: (scoreRanges) => {
+          this.studentScoreRanges.set(scoreRanges);
+          this.hasLoadedStudentScoreRanges.set(true);
+        },
+        error: (error: HttpErrorResponse) => {
+          this.studentScoreRangesError.set(this.extractErrorMessage(error));
+        }
+      });
   }
 
   private loadSelectedStudentProgress(afterLoad?: () => void): void {

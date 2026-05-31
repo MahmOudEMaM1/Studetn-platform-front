@@ -14,6 +14,7 @@ import {
   TeacherStudentListItem,
   TeacherStudentProgress,
   TeacherStudentProgressSummary,
+  TeacherStudentScoreRange,
   TeacherStudentTopicProgress,
   TeacherStudentTopicQuizAttempts
 } from './teacher-dashboard.models';
@@ -44,6 +45,22 @@ export class TeacherDashboardApiService {
           completedQuizzes: this.readNumber(item, 'passedAttempts', 'completedQuizzes', 'completed_quizzes') ?? 0,
           averageScore: this.readNumber(item, 'averageScore', 'average_score') ?? 0,
           bestScore: this.readNumber(item, 'bestScore', 'best_score', 'averageScore', 'average_score') ?? 0
+        }))
+      )
+    );
+  }
+
+  getStudentScoreRanges(): Observable<TeacherStudentScoreRange[]> {
+    return this.http.get<unknown>(this.appConfig.teacherStudentScoreRangesUrl).pipe(
+      map((response) =>
+        this.extractArray(response).map((item) => ({
+          studentId: this.readNumber(item, 'studentId', 'student_id') ?? 0,
+          userId: this.readNumber(item, 'userId', 'user_id') ?? 0,
+          fullName: this.readString(item, 'fullName', 'full_name') ?? 'Student',
+          email: this.readString(item, 'email') ?? 'No email provided',
+          attemptsCount: this.readNumber(item, 'attemptsCount', 'attempts_count') ?? 0,
+          bestScore: this.readNumber(item, 'bestScore', 'best_score') ?? 0,
+          lowScore: this.readNumber(item, 'lowScore', 'low_score') ?? 0
         }))
       )
     );
